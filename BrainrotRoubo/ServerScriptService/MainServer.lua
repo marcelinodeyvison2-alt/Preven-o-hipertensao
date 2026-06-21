@@ -533,9 +533,26 @@ end
 -- =====================================================
 --  VISUAL 3D DE BRAINROT
 -- =====================================================
+local MESH_TYPES = {
+    Sphere = Enum.MeshType.Sphere, Brick = Enum.MeshType.Brick,
+    Torso  = Enum.MeshType.Torso,  Wedge = Enum.MeshType.Wedge,
+    Head   = Enum.MeshType.Head,
+}
+
 local function buildBrainrotVisuals(part, rarity, isLua, rarColor)
-    local cfg = GameConfig.RARITY_MESH and GameConfig.RARITY_MESH[rarity]
+    local cfg    = GameConfig.RARITY_MESH   and GameConfig.RARITY_MESH[rarity]
+    local visual = GameConfig.RARITY_VISUAL and GameConfig.RARITY_VISUAL[rarity]
     if not cfg then return end
+
+    -- SpecialMesh por raridade (forma única)
+    if visual then
+        local sm       = Instance.new("SpecialMesh")
+        sm.MeshType    = MESH_TYPES[visual.mesh] or Enum.MeshType.Sphere
+        local sc       = (GameConfig.RARITY_MESH_SCALE and GameConfig.RARITY_MESH_SCALE[rarity]) or Vector3.new(1,1,1)
+        sm.Scale       = sc
+        sm.Parent      = part
+    end
+
     -- Anéis decorativos (cilindros horizontais)
     for i = 1, cfg.rings do
         local diam = 5 + i * 2
@@ -550,8 +567,27 @@ local function buildBrainrotVisuals(part, rarity, isLua, rarColor)
         ring.Color        = isLua and Color3.fromRGB(200, 0, 0) or rarColor
         ring.Material     = Enum.Material.Neon
         ring.Transparency = 0.45
-        ring.Parent       = part  -- filho do brainrot, não do folder
+        ring.Parent       = part
     end
+
+    -- Orbs satélite para raridades altas (orbitam ao redor)
+    local orbCount = visual and visual.orbCount or 0
+    for i = 1, orbCount do
+        local orb = Instance.new("Part")
+        orb.Name         = "Orb_" .. i
+        orb.Shape        = Enum.PartType.Ball
+        orb.Size         = Vector3.new(0.55, 0.55, 0.55)
+        orb.Position     = part.Position
+        orb.Anchored     = true
+        orb.CanCollide   = false
+        orb.CastShadow   = false
+        orb.Color        = isLua and Color3.fromRGB(220, 50, 50) or rarColor
+        orb.Material     = Enum.Material.Neon
+        orb.Transparency = 0.15
+        orb.Parent       = part
+        local ol = Instance.new("PointLight"); ol.Color=isLua and Color3.fromRGB(255,0,0) or rarColor; ol.Brightness=1.5; ol.Range=5; ol.Parent=orb
+    end
+
     -- Partículas para raridades altas
     if cfg.particles then
         local att = Instance.new("Attachment"); att.Parent = part
@@ -569,6 +605,14 @@ local function buildBrainrotVisuals(part, rarity, isLua, rarColor)
         pe.Speed       = NumberRange.new(2, 7)
         pe.SpreadAngle = Vector2.new(180, 180)
         pe.Parent      = att
+
+        -- Burst de spawn dramático para God/Secret/OG
+        local rank = GameConfig.RARITY_RANK[rarity] or 0
+        if rank >= 7 or isLua then
+            task.defer(function()
+                if pe and pe.Parent then pe:Emit(isLua and 60 or 30 + rank * 8) end
+            end)
+        end
     end
 end
 
@@ -638,11 +682,17 @@ local function spawnBrainrot()
     if bp2 then local ind=bp2:FindFirstChild("Indicator"); if ind then ind.Color=isLua and Color3.fromRGB(255,0,0) or rarColor end end
 
     local baseY=spawnY; local t=0; local conn
-    -- Coleta anéis para animação
+    -- Separa anéis e orbs para animações distintas
     local meshRings = {}
+    local meshOrbs  = {}
     for _, c in ipairs(part:GetChildren()) do
-        if c:IsA("BasePart") then table.insert(meshRings, c) end
+        if c:IsA("BasePart") then
+            if c.Name:sub(1,4)=="Ring" then table.insert(meshRings, c)
+            elseif c.Name:sub(1,3)=="Orb" then table.insert(meshOrbs, c)
+            end
+        end
     end
+    local orbTotal = #meshOrbs
     conn = RunService.Heartbeat:Connect(function(dt)
         t=t+dt
         if not part or not part.Parent then conn:Disconnect(); return end
@@ -651,6 +701,16 @@ local function spawnBrainrot()
         for i, ring in ipairs(meshRings) do
             ring.CFrame = CFrame.new(basePos.X, yOff, basePos.Z)
                 * CFrame.Angles(math.rad(t*25*i), math.rad(t*15*i), math.rad(90))
+        end
+        -- Orbs orbitam ao redor como satélites
+        for i, orb in ipairs(meshOrbs) do
+            local angle  = t * 1.6 + (i-1) * (math.pi*2 / math.max(orbTotal,1))
+            local radius = 2.8 + i * 0.4
+            orb.CFrame = CFrame.new(
+                basePos.X + math.cos(angle)*radius,
+                yOff + math.sin(t*2.2 + i)*0.45,
+                basePos.Z + math.sin(angle)*radius
+            )
         end
     end)
 

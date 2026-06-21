@@ -297,23 +297,161 @@ for _, idx in ipairs({9, 10, 11, 12}) do
 end
 
 -- =====================================================
---  NPC VENDEDOR
+--  DECORAÇÃO: BIOMA EXTERNO (árvores, pedras, arbustos)
 -- =====================================================
+local treePositions = {
+    Vector3.new( 110,0, 30), Vector3.new( 110,0,-30), Vector3.new(-110,0, 30), Vector3.new(-110,0,-30),
+    Vector3.new(  30,0, 110), Vector3.new( -30,0, 110), Vector3.new( 30,0,-110), Vector3.new( -30,0,-110),
+    Vector3.new( 100,0, 70), Vector3.new(-100,0, 70), Vector3.new( 100,0,-70), Vector3.new(-100,0,-70),
+    Vector3.new(  70,0, 100), Vector3.new( -70,0, 100), Vector3.new( 70,0,-100), Vector3.new( -70,0,-100),
+    Vector3.new( 125,0,  0), Vector3.new(-125,0,  0), Vector3.new(   0,0, 125), Vector3.new(   0,0,-125),
+}
+local treeTrunkColors = { BrickColor.new("Reddish brown"), BrickColor.new("Dark orange"), BrickColor.new("Brown") }
+local treeLeafColors  = { BrickColor.new("Bright green"),  BrickColor.new("Dark green"),  BrickColor.new("Medium green") }
+for i, pos in ipairs(treePositions) do
+    local tc = treeTrunkColors[(i-1)%#treeTrunkColors+1]
+    local lc = treeLeafColors[(i-1)%#treeLeafColors+1]
+    local h  = 6 + (i%4)*1.5
+    makePart({ Name="TreeTrunk_"..i, Size=Vector3.new(1.2,h,1.2), Position=Vector3.new(pos.X,h/2,pos.Z),
+        BrickColor=tc, Material=Enum.Material.Wood, CanCollide=true })
+    makePart({ Name="TreeLeaves_"..i, Shape=Enum.PartType.Ball, Size=Vector3.new(5+(i%3),5+(i%3),5+(i%3)),
+        Position=Vector3.new(pos.X,h+2.5,pos.Z), BrickColor=lc, Material=Enum.Material.Grass, CanCollide=false })
+end
+
+-- Pedras decorativas (anel externo)
+local rockPositions = {
+    Vector3.new( 95,0, 10), Vector3.new(-95,0,-10), Vector3.new( 10,0, 95), Vector3.new(-10,0,-95),
+    Vector3.new( 80,0, 90), Vector3.new(-80,0,-90), Vector3.new( 90,0,-80), Vector3.new(-90,0, 80),
+    Vector3.new(115,0, 50), Vector3.new(-115,0,-50), Vector3.new( 50,0,115), Vector3.new(-50,0,-115),
+}
+for i, pos in ipairs(rockPositions) do
+    local sz = 2 + (i%3)*1.2
+    makePart({ Name="Rock_"..i, Size=Vector3.new(sz,sz*0.6,sz*0.8), Position=Vector3.new(pos.X,sz*0.3,pos.Z),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.Rock, CanCollide=true })
+end
+
+-- Arbustos (esferas menores verdes)
+local bushPositions = {
+    Vector3.new( 70,0, 20), Vector3.new(-70,0, 20), Vector3.new( 20,0, 70), Vector3.new(-20,0, 70),
+    Vector3.new( 70,0,-20), Vector3.new(-70,0,-20), Vector3.new( 20,0,-70), Vector3.new(-20,0,-70),
+    Vector3.new( 55,0, 55), Vector3.new(-55,0, 55), Vector3.new( 55,0,-55), Vector3.new(-55,0,-55),
+}
+for i, pos in ipairs(bushPositions) do
+    local sz = 2.5 + (i%2)
+    makePart({ Name="Bush_"..i, Shape=Enum.PartType.Ball, Size=Vector3.new(sz,sz*0.7,sz),
+        Position=Vector3.new(pos.X,sz*0.35,pos.Z), BrickColor=BrickColor.new("Medium green"),
+        Material=Enum.Material.Grass, CanCollide=false })
+end
+
+-- =====================================================
+--  DECORAÇÃO: ZONA ÉPICA (cristais + ruínas)
+-- =====================================================
+local crystalPositions = {
+    Vector3.new( 30,0, 15), Vector3.new(-30,0, 15), Vector3.new( 15,0, 30), Vector3.new(-15,0, 30),
+    Vector3.new( 30,0,-15), Vector3.new(-30,0,-15), Vector3.new( 15,0,-30), Vector3.new(-15,0,-30),
+    Vector3.new( 38,0,  5), Vector3.new(-38,0,  5), Vector3.new(  5,0, 38), Vector3.new( -5,0, 38),
+}
+local crystalColors = {
+    Color3.fromRGB(0,220,200), Color3.fromRGB(80,200,255), Color3.fromRGB(150,80,255), Color3.fromRGB(0,255,180),
+}
+for i, pos in ipairs(crystalPositions) do
+    local h   = 3 + (i%4)*1.5
+    local clr = crystalColors[(i-1)%#crystalColors+1]
+    local c1  = makePart({ Name="Crystal_"..i, Size=Vector3.new(0.8,h,0.8),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.25 })
+    c1.CFrame = CFrame.new(pos.X,h/2,pos.Z) * CFrame.Angles(math.rad((i%5)*8-20),0,math.rad((i%3)*12-18))
+    c1.Color  = clr
+    local cL  = Instance.new("PointLight"); cL.Color=clr; cL.Brightness=1.5; cL.Range=12; cL.Parent=c1
+    local c2  = makePart({ Name="Crystal2_"..i, Size=Vector3.new(0.5,h*0.6,0.5),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.35 })
+    c2.CFrame = CFrame.new(pos.X+1,(h*0.6)/2,pos.Z+0.8) * CFrame.Angles(math.rad(15),0,math.rad(-12))
+    c2.Color  = clr
+end
+
+-- Pilares de ruína na zona épica
+for i, pos in ipairs({ Vector3.new(35,0,-35), Vector3.new(-35,0,35), Vector3.new(38,0,35), Vector3.new(-38,0,-35) }) do
+    local h = 3 + i*0.8
+    makePart({ Name="Ruin_"..i, Size=Vector3.new(2,h,2), Position=Vector3.new(pos.X,h/2,pos.Z),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=true })
+    local top = makePart({ Name="RuinTop_"..i, Size=Vector3.new(2.4,0.5,2.4),
+        Position=Vector3.new(pos.X,h+0.25,pos.Z), BrickColor=BrickColor.new("Teal"),
+        Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.4 })
+    local rl = Instance.new("PointLight"); rl.Color=Color3.fromRGB(0,200,180); rl.Brightness=2; rl.Range=14; rl.Parent=top
+end
+
+-- =====================================================
+--  DECORAÇÃO: POSTES DE BORDA
+-- =====================================================
+for i, pos in ipairs({
+    Vector3.new( 140,0,  0), Vector3.new(-140,0,  0), Vector3.new(   0,0,140), Vector3.new(   0,0,-140),
+    Vector3.new( 100,0,100), Vector3.new(-100,0,100), Vector3.new( 100,0,-100), Vector3.new(-100,0,-100),
+}) do
+    makePart({ Name="BorderPost_"..i, Size=Vector3.new(1.5,8,1.5), Position=Vector3.new(pos.X,4,pos.Z),
+        BrickColor=BrickColor.new("Medium stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=true })
+    local lamp = makePart({ Name="BorderLamp_"..i, Shape=Enum.PartType.Ball, Size=Vector3.new(2,2,2),
+        Position=Vector3.new(pos.X,9,pos.Z), BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.1 })
+    local ll = Instance.new("PointLight"); ll.Color=Color3.fromRGB(255,240,200); ll.Brightness=3; ll.Range=24; ll.Parent=lamp
+end
+
+-- =====================================================
+--  NPC VENDEDOR — Zé das Upgrades (modelo completo)
+-- =====================================================
+-- Corpo
 local vendedor = Instance.new("Part")
 vendedor.Name       = "VendedorNPC"
-vendedor.Size       = Vector3.new(2.5, 5, 2.5)
-vendedor.Position   = Vector3.new(0, 2.5, -16)
+vendedor.Size       = Vector3.new(2, 4.5, 1.2)
+vendedor.Position   = Vector3.new(0, 2.25, -16)
 vendedor.Anchored   = true
 vendedor.CanCollide = true
 vendedor.BrickColor = BrickColor.new("Reddish brown")
 vendedor.Material   = Enum.Material.SmoothPlastic
 vendedor.Parent     = workspace
 
+-- Barriga/roupa (manto)
+local vendRobe = makePart({
+    Name="VendedorRobe", Size=Vector3.new(2.4,4.2,1.4), Position=Vector3.new(0,2.1,-16),
+    BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false,
+})
+
+-- Braço esquerdo
+makePart({ Name="VendedorArmL", Size=Vector3.new(0.7,3.2,0.7), Position=Vector3.new(-1.5,2.2,-16),
+    BrickColor=BrickColor.new("Reddish brown"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+
+-- Braço direito (segurando cajado)
+makePart({ Name="VendedorArmR", Size=Vector3.new(0.7,3.2,0.7), Position=Vector3.new(1.5,2.2,-16),
+    BrickColor=BrickColor.new("Reddish brown"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+
+-- Cajado
+local staffPole = makePart({ Name="VendedorStaff", Size=Vector3.new(0.3,6,0.3),
+    Position=Vector3.new(2.5,3,-16), BrickColor=BrickColor.new("Dark orange"),
+    Material=Enum.Material.Wood, CanCollide=false })
+local staffGem  = makePart({ Name="VendedorStaffGem", Shape=Enum.PartType.Ball,
+    Size=Vector3.new(1.2,1.2,1.2), Position=Vector3.new(2.5,6.3,-16),
+    BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+    CanCollide=false, CastShadow=false, Transparency=0.1 })
+staffGem.Color = Color3.fromRGB(130,80,255)
+local gemLight = Instance.new("PointLight"); gemLight.Color=Color3.fromRGB(130,80,255); gemLight.Brightness=3; gemLight.Range=16; gemLight.Parent=staffGem
+
+-- Chapéu de mago (cone + aba)
+local hatBrim = makePart({ Name="VendedorHatBrim", Size=Vector3.new(3,0.3,3), Position=Vector3.new(0,7.2,-16),
+    BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+local hatCone = makePart({ Name="VendedorHatCone", Size=Vector3.new(1.6,3,1.6), Position=Vector3.new(0,8.7,-16),
+    BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+local hatStar = makePart({ Name="VendedorHatStar", Shape=Enum.PartType.Ball, Size=Vector3.new(0.5,0.5,0.5),
+    Position=Vector3.new(0,10.4,-16), BrickColor=BrickColor.new("Institutional white"),
+    Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
+hatStar.Color = Color3.fromRGB(255,220,60)
+Instance.new("PointLight").Color=Color3.fromRGB(255,220,60); local hatL=Instance.new("PointLight"); hatL.Color=Color3.fromRGB(255,220,60); hatL.Brightness=2; hatL.Range=10; hatL.Parent=hatStar
+
+-- Cabeça
 local vendHead = makePart({
     Name       = "VendedorHead",
     Shape      = Enum.PartType.Ball,
-    Size       = Vector3.new(2, 2, 2),
-    Position   = Vector3.new(0, 6.3, -16),
+    Size       = Vector3.new(2.2, 2.2, 2.2),
+    Position   = Vector3.new(0, 6.1, -16),
     BrickColor = BrickColor.new("Brick yellow"),
     Material   = Enum.Material.SmoothPlastic,
     CanCollide = false,
@@ -356,4 +494,61 @@ pp.HoldDuration          = 0
 pp.MaxActivationDistance = 10
 pp.Parent                = vendedor
 
-print("[BrainrotRoubo] Mapa gerado com " .. #GameConfig.BASE_POSITIONS .. " bases, biomas e NPC Vendedor!")
+-- =====================================================
+--  PETS DE EXIBIÇÃO (estáticos perto do vendedor)
+-- =====================================================
+-- Pet Ratinho — pequeno rato cinza ao lado do NPC
+local ratBody = makePart({ Name="PetRatinho_Body", Shape=Enum.PartType.Ball,
+    Size=Vector3.new(1.2,0.9,1.5), Position=Vector3.new(-3,0.45,-16),
+    BrickColor=BrickColor.new("Medium stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+makePart({ Name="PetRatinho_Head", Shape=Enum.PartType.Ball, Size=Vector3.new(0.9,0.9,0.9),
+    Position=Vector3.new(-3.2,1.05,-15.2), BrickColor=BrickColor.new("Medium stone grey"),
+    Material=Enum.Material.SmoothPlastic, CanCollide=false })
+makePart({ Name="PetRatinho_EarL", Shape=Enum.PartType.Ball, Size=Vector3.new(0.35,0.35,0.1),
+    Position=Vector3.new(-2.95,1.6,-15.1), BrickColor=BrickColor.new("Light reddish violet"),
+    Material=Enum.Material.SmoothPlastic, CanCollide=false })
+makePart({ Name="PetRatinho_EarR", Shape=Enum.PartType.Ball, Size=Vector3.new(0.35,0.35,0.1),
+    Position=Vector3.new(-3.45,1.6,-15.1), BrickColor=BrickColor.new("Light reddish violet"),
+    Material=Enum.Material.SmoothPlastic, CanCollide=false })
+-- Brilho nos olhos do ratinho
+local ratEye = makePart({ Name="PetRatinho_Eye", Shape=Enum.PartType.Ball, Size=Vector3.new(0.2,0.2,0.2),
+    Position=Vector3.new(-3.1,1.1,-14.8), BrickColor=BrickColor.new("Institutional white"),
+    Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
+ratEye.Color = Color3.fromRGB(255,50,50)
+-- Billboard com nome do pet
+local ratBB = Instance.new("BillboardGui"); ratBB.Size=UDim2.new(0,130,0,28); ratBB.StudsOffset=Vector3.new(0,1.5,0); ratBB.Parent=ratBody
+local ratLbl = Instance.new("TextLabel"); ratLbl.Size=UDim2.new(1,0,1,0); ratLbl.BackgroundTransparency=1
+ratLbl.Text="🐭 Pet Ratinho"; ratLbl.TextColor3=Color3.fromRGB(255,255,255); ratLbl.TextScaled=true
+ratLbl.Font=Enum.Font.GothamBold; ratLbl.TextStrokeTransparency=0; ratLbl.TextStrokeColor3=Color3.fromRGB(0,0,0); ratLbl.Parent=ratBB
+
+-- Pet Gato Místico — gato azul/místico do outro lado
+local gatoBody = makePart({ Name="PetGato_Body", Shape=Enum.PartType.Ball,
+    Size=Vector3.new(1.4,1.1,1.6), Position=Vector3.new(3,0.55,-16),
+    BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+gatoBody.Color = Color3.fromRGB(160,100,255)
+makePart({ Name="PetGato_Head", Shape=Enum.PartType.Ball, Size=Vector3.new(1.1,1.1,1.1),
+    Position=Vector3.new(3.2,1.3,-15.2), BrickColor=BrickColor.new("Institutional white"),
+    Material=Enum.Material.SmoothPlastic, CanCollide=false }).Color = Color3.fromRGB(160,100,255)
+makePart({ Name="PetGato_EarL", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(2.9,2.0,-15.15),
+    BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic,
+    CanCollide=false }).Color = Color3.fromRGB(160,100,255)
+makePart({ Name="PetGato_EarR", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(3.5,2.0,-15.15),
+    BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic,
+    CanCollide=false }).Color = Color3.fromRGB(160,100,255)
+-- Aura mística ao redor do gato
+local gatoAtt = Instance.new("Attachment"); gatoAtt.Parent = gatoBody
+local gatoPE  = Instance.new("ParticleEmitter"); gatoPE.Parent = gatoAtt
+gatoPE.Color  = ColorSequence.new({ ColorSequenceKeypoint.new(0,Color3.fromRGB(160,100,255)), ColorSequenceKeypoint.new(1,Color3.fromRGB(255,200,255)) })
+gatoPE.Size   = NumberSequence.new({ NumberSequenceKeypoint.new(0,0.2), NumberSequenceKeypoint.new(1,0) })
+gatoPE.Lifetime=NumberRange.new(0.8,1.6); gatoPE.Rate=12; gatoPE.Speed=NumberRange.new(1,3); gatoPE.SpreadAngle=Vector2.new(180,180)
+local gatoEye = makePart({ Name="PetGato_Eye", Shape=Enum.PartType.Ball, Size=Vector3.new(0.25,0.25,0.25),
+    Position=Vector3.new(3.1,1.35,-14.7), BrickColor=BrickColor.new("Institutional white"),
+    Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
+gatoEye.Color = Color3.fromRGB(80,200,255)
+local catLight = Instance.new("PointLight"); catLight.Color=Color3.fromRGB(160,80,255); catLight.Brightness=2; catLight.Range=10; catLight.Parent=gatoBody
+local catoBB = Instance.new("BillboardGui"); catoBB.Size=UDim2.new(0,160,0,28); catoBB.StudsOffset=Vector3.new(0,1.8,0); catoBB.Parent=gatoBody
+local catoLbl = Instance.new("TextLabel"); catoLbl.Size=UDim2.new(1,0,1,0); catoLbl.BackgroundTransparency=1
+catoLbl.Text="🐱 Gato Místico"; catoLbl.TextColor3=Color3.fromRGB(220,160,255); catoLbl.TextScaled=true
+catoLbl.Font=Enum.Font.GothamBold; catoLbl.TextStrokeTransparency=0; catoLbl.TextStrokeColor3=Color3.fromRGB(0,0,0); catoLbl.Parent=catoBB
+
+print("[BrainrotRoubo] Mapa COMPLETO gerado: " .. #GameConfig.BASE_POSITIONS .. " bases, biomas, NPC Zé das Upgrades, pets e decorações!")

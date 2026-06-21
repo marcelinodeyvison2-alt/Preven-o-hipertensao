@@ -366,4 +366,46 @@ GameConfig.LOGIN_STREAK_REWARDS = {
 }
 GameConfig.LOGIN_STREAK_MAX_GAP = 2  -- dias sem logar antes de resetar streak
 
+-- =====================================================
+--  VISUAL 3D AVANÇADO POR RARIDADE
+-- =====================================================
+-- mesh: tipo do SpecialMesh | orbCount: orbs satélite ao redor
+GameConfig.RARITY_VISUAL = {
+    Comum    = { mesh="Sphere",  orbCount=0 },
+    Incomum  = { mesh="Brick",   orbCount=0 },
+    Raro     = { mesh="Sphere",  orbCount=1 },
+    Epico    = { mesh="Torso",   orbCount=2 },
+    Lendario = { mesh="Sphere",  orbCount=3 },
+    Mitico   = { mesh="Wedge",   orbCount=3 },
+    God      = { mesh="Sphere",  orbCount=4 },
+    Secret   = { mesh="Head",    orbCount=3 },
+    OG       = { mesh="Sphere",  orbCount=5 },
+}
+
+-- Escala do mesh principal por raridade
+GameConfig.RARITY_MESH_SCALE = {
+    Comum    = Vector3.new(1.0, 1.0, 1.0),
+    Incomum  = Vector3.new(1.0, 1.0, 1.0),
+    Raro     = Vector3.new(1.1, 1.1, 1.1),
+    Epico    = Vector3.new(1.0, 1.0, 1.0),
+    Lendario = Vector3.new(1.2, 1.2, 1.2),
+    Mitico   = Vector3.new(1.1, 1.1, 1.1),
+    God      = Vector3.new(1.3, 1.3, 1.3),
+    Secret   = Vector3.new(1.2, 1.2, 1.2),
+    OG       = Vector3.new(1.5, 1.5, 1.5),
+}
+
+-- Ícones de raridade para a UI
+GameConfig.RARITY_ICONS = {
+    Comum    = "⬜",
+    Incomum  = "🟩",
+    Raro     = "🟦",
+    Epico    = "🟪",
+    Lendario = "🌟",
+    Mitico   = "🔥",
+    God      = "👑",
+    Secret   = "❓",
+    OG       = "🏆",
+}
+
 return GameConfig

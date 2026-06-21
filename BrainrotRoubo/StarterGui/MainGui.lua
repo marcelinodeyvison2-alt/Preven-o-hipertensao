@@ -309,6 +309,11 @@ local StealKeyLabel = makeTL(StealPrompt, {
     Text=isMobile and "Botão ROUBAR →" or "[E] para Roubar",
     TextColor3=Color3.fromRGB(255,210,50), TextScaled=true, Font=Enum.Font.GothamBold,
 })
+-- Ícone de raridade (emoji colorido à direita do rarity label)
+local StealRarIcon = makeTL(StealPrompt, {
+    Size=UDim2.new(0.18,0,0.26,0), Position=UDim2.new(0.82,0,0.34,0), BackgroundTransparency=1,
+    Text="⬜", TextColor3=Color3.fromRGB(255,255,255), TextScaled=true, Font=Enum.Font.GothamBold,
+})
 -- Cooldown visual bar (feature 3)
 local CooldownBg = makeFrame(StealPrompt, {
     Size=UDim2.new(0.28,0,0.14,0), Position=UDim2.new(0.70,0,0.84,0),
@@ -903,7 +908,10 @@ local function buildInventoryUI()
         })
         round(row, 7)
         stroke(row, isSelected and Color3.fromRGB(255,215,0) or rarColor, isSelected and 2.5 or 1)
-        makeTL(row, {Size=UDim2.new(0.4,0,1,0), Position=UDim2.new(0,8,0,0), BackgroundTransparency=1,
+        local rarIcon2 = (GameConfig.RARITY_ICONS and GameConfig.RARITY_ICONS[item.rarity]) or "⬜"
+        makeTL(row, {Size=UDim2.new(0,24,1,0), Position=UDim2.new(0,4,0,0), BackgroundTransparency=1,
+            Text=rarIcon2, TextColor3=Color3.fromRGB(255,255,255), TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=11,})
+        makeTL(row, {Size=UDim2.new(0.38,0,1,0), Position=UDim2.new(0,30,0,0), BackgroundTransparency=1,
             Text=item.name, TextColor3=rarColor, TextScaled=true, Font=Enum.Font.GothamBold,
             TextXAlignment=Enum.TextXAlignment.Left, ZIndex=11,})
         makeTL(row, {Size=UDim2.new(0.25,0,1,0), Position=UDim2.new(0.4,0,0,0), BackgroundTransparency=1,
@@ -1940,9 +1948,11 @@ RunService.Heartbeat:Connect(function(dt)
             local rarColor = GameConfig.RARITY_COLORS[rarity] or Color3.fromRGB(255,255,255)
             local mutColor = Color3.fromRGB(180,180,180)
             for _, m in ipairs(GameConfig.MUTATIONS) do if m.name==mutName then mutColor=m.color; break end end
+            local rarIcon = (GameConfig.RARITY_ICONS and GameConfig.RARITY_ICONS[rarity]) or "⬜"
             StealNameLabel.Text      = (isLua and "🌑 " or "")..bName
             StealRarLabel.Text       = "["..rarity.."]  +"..formatNum(gained).." aura"
             StealRarLabel.TextColor3 = rarColor
+            StealRarIcon.Text        = isLua and "🌑" or rarIcon
             StealMutLabel.Text       = (isLua and "🌑 " or "✦ ")..mutName.."  ×"..tostring(mutMult)
             StealMutLabel.TextColor3 = mutColor
         end
