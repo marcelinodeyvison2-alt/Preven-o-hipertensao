@@ -69,6 +69,14 @@ local function getAuraMultiplier(rb)
     return GameConfig.AURA_GAIN_MULTIPLIER ^ rb
 end
 
+local function formatBig(n)
+    if n >= 1e12 then return string.format("%.1fT", n/1e12) end
+    if n >= 1e9  then return string.format("%.1fB", n/1e9)  end
+    if n >= 1e6  then return string.format("%.1fM", n/1e6)  end
+    if n >= 1000 then return string.format("%.1fK", n/1000) end
+    return tostring(math.floor(n))
+end
+
 local function buildUpdatePayload(data)
     local rb = data.rebirths
     return {
@@ -417,15 +425,6 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     IndexUpdateRE:FireClient(player, data.index)
     updateLeaderstats(player)
 end)
-
--- Helper de formatação (precisa estar antes do evento de roubo)
-function formatBig(n)
-    if n >= 1e12 then return string.format("%.1fT", n/1e12) end
-    if n >= 1e9  then return string.format("%.1fB", n/1e9)  end
-    if n >= 1e6  then return string.format("%.1fM", n/1e6)  end
-    if n >= 1000 then return string.format("%.1fK", n/1000) end
-    return tostring(math.floor(n))
-end
 
 -- =====================================================
 --  EVENTO: REBIRTH

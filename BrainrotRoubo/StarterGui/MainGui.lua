@@ -50,6 +50,7 @@ local function stroke(obj, color, thick)
     s.Color     = color or Color3.fromRGB(255,255,255)
     s.Thickness = thick or 1.5
     s.Parent    = obj
+    return s  -- necessário para capturar o objeto e animar depois
 end
 local function formatNum(n)
     if n >= 1e12 then return string.format("%.1fT", n/1e12) end
