@@ -8,14 +8,17 @@ Jogo no estilo idle/clicker em que você **rouba brainrots** espalhados pelo map
 
 ### Raridades de Brainrot
 
-| Raridade   | Chance   | Aura Base         |
-|------------|----------|-------------------|
-| Comum      | ~45%     | 8–15              |
-| Incomum    | ~28%     | 60–80             |
-| Raro       | ~15%     | 300–400           |
-| Épico      | ~8%      | 1 500–2 000       |
-| Lendário   | ~3.3%    | 8 000–12 000      |
-| Mítico     | ~0.7%    | 50 000–75 000     |
+| Raridade   | Chance        | Aura Base              | Cor           |
+|------------|---------------|------------------------|---------------|
+| Comum      | ~45%          | 8 – 15                 | Cinza         |
+| Incomum    | ~28%          | 60 – 80                | Verde         |
+| Raro       | ~15%          | 300 – 400              | Azul          |
+| Épico      | ~8%           | 1 500 – 2 000          | Roxo          |
+| Lendário   | ~3.3%         | 8 000 – 12 000         | Dourado       |
+| Mítico     | ~0.68%        | 50 000 – 75 000        | Vermelho      |
+| **God**    | **1 em 5k**   | **500k – 1 000 000**   | Amarelo divino|
+| **Secret** | **1 em 111k** | **5M – 12 000 000**    | Ciano         |
+| **OG**     | **1 em 1M**   | **100 000 000**        | Branco puro   |
 
 ### Sistema de Aura
 - Cap inicial: **500**

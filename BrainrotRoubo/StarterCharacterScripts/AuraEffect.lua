@@ -71,14 +71,23 @@ trail.Attachment1 = att1
 trail.Enabled     = false
 trail.Parent      = root
 
--- Cores por nível de rebirths
+-- Cores de aura por nível de rebirth
+-- Segue a progressão de raridade do jogo
+local REBIRTH_COLORS = {
+    [0]  = Color3.fromRGB(200, 200, 200), -- Comum
+    [1]  = Color3.fromRGB(80,  210, 80 ), -- Incomum
+    [2]  = Color3.fromRGB(60,  120, 255), -- Raro
+    [3]  = Color3.fromRGB(190, 50,  255), -- Épico
+    [4]  = Color3.fromRGB(255, 195, 0  ), -- Lendário
+    [5]  = Color3.fromRGB(255, 50,  50 ), -- Mítico
+    [6]  = Color3.fromRGB(255, 255, 120), -- God
+    [7]  = Color3.fromRGB(0,   220, 200), -- Secret
+    [8]  = Color3.fromRGB(255, 255, 255), -- OG (branco puro)
+}
+
 local function getAuraColor(rebirths)
-    if rebirths == 0 then return Color3.fromRGB(200, 200, 200) end
-    if rebirths == 1 then return Color3.fromRGB(80, 210, 80) end
-    if rebirths == 2 then return Color3.fromRGB(80, 120, 255) end
-    if rebirths == 3 then return Color3.fromRGB(190, 50, 255) end
-    if rebirths >= 4 then return Color3.fromRGB(255, 215, 0) end
-    return Color3.fromRGB(255, 50, 50)
+    local clamped = math.clamp(rebirths, 0, 8)
+    return REBIRTH_COLORS[clamped] or Color3.fromRGB(255, 255, 255)
 end
 
 local lastRebirths = 0
