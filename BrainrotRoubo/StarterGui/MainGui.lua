@@ -270,38 +270,29 @@ round(PrestigeBtn, 12); stroke(PrestigeBtn, Color3.fromRGB(200,100,255), 2)
 -- =====================================================
 local promptW = isMobile and 340 or 300
 local StealPrompt = makeFrame(ScreenGui, {
-    Size = UDim2.new(0,promptW,0,120), Position = UDim2.new(0.5,-promptW/2,0.70,0),
+    Size = UDim2.new(0,promptW,0,100), Position = UDim2.new(0.5,-promptW/2,0.70,0),
     BackgroundColor3 = Color3.fromRGB(8,8,14), BackgroundTransparency = 0.08,
     BorderSizePixel = 0, Visible = false,
 })
 round(StealPrompt, 14)
 local stealStroke = stroke(StealPrompt, Color3.fromRGB(255,255,255), 1.5)
 local StealNameLabel = makeTL(StealPrompt, {
-    Size=UDim2.new(1,0,0.30,0), BackgroundTransparency=1, Text="Brainrot",
+    Size=UDim2.new(1,0,0.34,0), BackgroundTransparency=1, Text="Brainrot",
     TextColor3=Color3.fromRGB(255,255,255), TextScaled=true, Font=Enum.Font.GothamBold,
 })
 local StealRarLabel = makeTL(StealPrompt, {
-    Size=UDim2.new(1,0,0.22,0), Position=UDim2.new(0,0,0.30,0), BackgroundTransparency=1,
+    Size=UDim2.new(1,0,0.26,0), Position=UDim2.new(0,0,0.34,0), BackgroundTransparency=1,
     Text="[Comum]", TextColor3=Color3.fromRGB(180,180,180), TextScaled=true, Font=Enum.Font.Gotham,
 })
 local StealMutLabel = makeTL(StealPrompt, {
-    Size=UDim2.new(1,0,0.20,0), Position=UDim2.new(0,0,0.52,0), BackgroundTransparency=1,
+    Size=UDim2.new(1,0,0.22,0), Position=UDim2.new(0,0,0.60,0), BackgroundTransparency=1,
     Text="✦ Básico ×1", TextColor3=Color3.fromRGB(180,180,180), TextScaled=true, Font=Enum.Font.GothamBold,
 })
 local StealKeyLabel = makeTL(StealPrompt, {
-    Size=UDim2.new(1,0,0.18,0), Position=UDim2.new(0,0,0.72,0), BackgroundTransparency=1,
-    Text=isMobile and "Botão ROUBAR →" or "[E] Roubar  |  Auto-roubo",
+    Size=UDim2.new(1,0,0.18,0), Position=UDim2.new(0,0,0.82,0), BackgroundTransparency=1,
+    Text=isMobile and "Botão ROUBAR →" or "[E] para Roubar",
     TextColor3=Color3.fromRGB(255,210,50), TextScaled=true, Font=Enum.Font.GothamBold,
 })
-local AutoStealBg = makeFrame(StealPrompt, {
-    Size=UDim2.new(0.9,0,0,5), Position=UDim2.new(0.05,0,0.91,0),
-    BackgroundColor3=Color3.fromRGB(30,30,50), BorderSizePixel=0,
-})
-round(AutoStealBg, 3)
-local AutoStealBar = makeFrame(AutoStealBg, {
-    Size=UDim2.new(0,0,1,0), BackgroundColor3=Color3.fromRGB(80,220,80), BorderSizePixel=0,
-})
-round(AutoStealBar, 3)
 
 local mobileStealSize = isMobile and 150 or 130
 local MobileStealBtn = makeTB(ScreenGui, {
@@ -1551,8 +1542,6 @@ PrestigeBtn.Activated:Connect(function() PrestigeEvent:FireServer() end)
 -- =====================================================
 local nearestBrainrot = nil
 local luaPulseT       = 0
-local autoStealTimer  = 0
-local AUTO_STEAL_DELAY = 1.5
 
 RunService.Heartbeat:Connect(function(dt)
     local char = player.Character
@@ -1619,15 +1608,6 @@ RunService.Heartbeat:Connect(function(dt)
             StealMutLabel.TextColor3 = mutColor
         end
 
-        autoStealTimer = autoStealTimer+dt
-        AutoStealBar.Size = UDim2.new(math.clamp(autoStealTimer/AUTO_STEAL_DELAY,0,1), 0, 1, 0)
-        if autoStealTimer >= AUTO_STEAL_DELAY then
-            autoStealTimer = 0
-            if nearestBrainrot and nearestBrainrot.Parent then
-                StealEvent:FireServer(nearestBrainrot)
-            end
-        end
-
         if isLua then
             luaPulseT = luaPulseT+dt*4
             local alpha = (math.sin(luaPulseT)+1)/2
@@ -1636,8 +1616,6 @@ RunService.Heartbeat:Connect(function(dt)
         else
             luaPulseT=0; stealStroke.Color=Color3.fromRGB(255,255,255); stealStroke.Thickness=1.5
         end
-    else
-        autoStealTimer=0; AutoStealBar.Size=UDim2.new(0,0,1,0)
     end
 end)
 
