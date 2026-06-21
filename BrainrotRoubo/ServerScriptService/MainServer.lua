@@ -56,6 +56,13 @@ local ClaimBPEvent      = makeRE("ClaimBattlepass")
 local LeaderboardRE     = makeRE("LeaderboardUpdate")
 local LeaderboardRF     = makeRF("GetLeaderboard")
 local EventUpdateRE     = makeRE("EventUpdate")
+local TeamInviteRE      = makeRE("TeamInvite")
+local TeamAcceptEvent   = makeRE("TeamAccept")
+local TeamLeaveEvent    = makeRE("TeamLeave")
+local TeamUpdateRE      = makeRE("TeamUpdate")
+local WeeklyMissionRE   = makeRE("WeeklyMissionUpdate")
+local ClaimWeeklyEvent  = makeRE("ClaimWeeklyMission")
+local LoginStreakRE      = makeRE("LoginStreak")
 
 -- =====================================================
 --  MUNDO
@@ -68,6 +75,9 @@ local globalSpawnCount  = 0
 local currentInnerBases = {9, 10, 11, 12}
 local tradeIdCounter    = 0
 local PendingTrades     = {}
+local Teams             = {}   -- teamId -> {userId1, userId2}
+local PlayerTeam        = {}   -- userId -> teamId
+local teamCounter       = 0
 
 -- =====================================================
 --  DADOS DOS JOGADORES
@@ -94,6 +104,9 @@ local function defaultData()
         battlepass    = { xp=0, level=0, claimed={} },
         isVIP         = false,
         hasSeenTutorial = false,
+        loginStreak   = 0,
+        lastLoginDay  = 0,
+        weeklyMissionData = nil,
     }
 end
 
@@ -101,9 +114,10 @@ end
 --  HELPERS AURA / REBIRTH
 -- =====================================================
 local function getAuraCap(rb, prestige)
-    local base = GameConfig.BASE_AURA_CAP * (GameConfig.AURA_CAP_MULTIPLIER ^ rb)
-    local pvip  = prestige or 0
-    return math.floor(base * (GameConfig.PRESTIGE_MULTIPLIER ^ pvip))
+    local base     = GameConfig.BASE_AURA_CAP * (GameConfig.AURA_CAP_MULTIPLIER ^ rb)
+    local pvip     = prestige or 0
+    local capMult  = GameConfig.PRESTIGE_CAP_MULT or GameConfig.PRESTIGE_MULTIPLIER
+    return math.floor(base * (capMult ^ pvip))
 end
 local function getRebirthCost(rb) return math.floor(getAuraCap(rb,0) * GameConfig.REBIRTH_COST_FRACTION) end
 local function getAuraMultiplier(rb) return GameConfig.AURA_GAIN_MULTIPLIER ^ rb end
@@ -206,6 +220,46 @@ local function advanceMission(data, mType, extra)
                         elseif mission.type=="rebirth" and mType=="rebirth" then adv=true
                         end
                         if adv then md.progress[mId]=prog+1; changed=true end
+                    end
+                end
+            end
+        end
+    end
+    return changed
+end
+
+-- =====================================================
+--  WEEKLY MISSIONS
+-- =====================================================
+local function getMissionWeek() return math.floor(os.time() / (86400 * 7)) end
+
+local function refreshWeeklyMissions(data)
+    local thisWeek = getMissionWeek()
+    if not data.weeklyMissionData or data.weeklyMissionData.week ~= thisWeek then
+        local ids = {}
+        for _, m in ipairs(GameConfig.WEEKLY_MISSIONS) do table.insert(ids, m.id) end
+        data.weeklyMissionData = { week=thisWeek, active=ids, progress={}, claimed={} }
+    end
+end
+
+local function advanceWeeklyMission(data, mType, extra)
+    local wmd = data.weeklyMissionData; if not wmd then return false end
+    local changed = false
+    for _, mId in ipairs(wmd.active) do
+        if not wmd.claimed[mId] then
+            for _, mission in ipairs(GameConfig.WEEKLY_MISSIONS) do
+                if mission.id == mId then
+                    local prog = wmd.progress[mId] or 0
+                    if prog < mission.target then
+                        local adv = false
+                        if mission.type=="steal" and mType=="steal" then adv=true
+                        elseif mission.type=="rarityMin" and mType=="steal" then
+                            if (GameConfig.RARITY_RANK[extra.rarity] or 0) >= mission.rarityMin then adv=true end
+                        elseif mission.type=="mutation" and mType=="steal" then
+                            if extra.mutation==mission.mutation then adv=true end
+                        elseif mission.type=="rebirth" and mType=="rebirth" then adv=true
+                        end
+                        if adv then wmd.progress[mId]=prog+1; changed=true end
                     end
                 end
             end
@@ -352,20 +406,62 @@ local function loadData(player)
     if not data.unlockedTitles then data.unlockedTitles = {} end
     if not data.battlepass  then data.battlepass  = {xp=0,level=0,claimed={}} end
     if not data.prestige    then data.prestige    = 0 end
-    if not data.nextItemId  then data.nextItemId  = 0 end
+    if not data.nextItemId       then data.nextItemId       = 0   end
+    if not data.loginStreak      then data.loginStreak      = 0   end
+    if not data.lastLoginDay     then data.lastLoginDay     = 0   end
     refreshMissions(data)
+    refreshWeeklyMissions(data)
+    -- Login streak
+    local today   = getMissionDay()
+    local lastDay = data.lastLoginDay or 0
+    local dayGap  = today - lastDay
+    if lastDay > 0 and dayGap ~= 0 then
+        if dayGap == 1 then
+            data.loginStreak = (data.loginStreak or 0) + 1
+        elseif dayGap > (GameConfig.LOGIN_STREAK_MAX_GAP or 2) then
+            data.loginStreak = 1
+        end
+    elseif lastDay == 0 then
+        data.loginStreak = 1
+    end
+    if lastDay ~= today then data.lastLoginDay = today end
+    -- Streak reward
+    local streakReward = GameConfig.LOGIN_STREAK_REWARDS[data.loginStreak]
+    if streakReward and lastDay ~= today then
+        if streakReward.type=="aura" then
+            data.aura = math.min(data.aura + streakReward.amount, getAuraCap(data.rebirths, data.prestige))
+        elseif streakReward.type=="pet" then
+            local owns=false
+            for _, id in ipairs(data.pets) do if id==streakReward.id then owns=true; break end end
+            if not owns then table.insert(data.pets, streakReward.id) end
+        elseif streakReward.type=="title" then
+            if not data.unlockedTitles then data.unlockedTitles={} end
+            data.unlockedTitles[streakReward.id] = true
+        end
+    end
     -- Verifica VIP
     data.isVIP = checkVIP(player)
     PlayerData[player.UserId] = data
     UpdateAuraRE:FireClient(player, buildUpdatePayload(data))
     IndexUpdateRE:FireClient(player, data.index)
     MissionUpdateRE:FireClient(player, data.missionData)
+    WeeklyMissionRE:FireClient(player, data.weeklyMissionData)
     InventoryUpdateRE:FireClient(player, data.inventory)
     PetUpdateRE:FireClient(player, { owned=data.pets, active=data.activePet })
     BattlepassRE:FireClient(player, data.battlepass)
-    AchievementRE:FireClient(player, {})  -- envia achievements atuais
+    -- Envia conquistas existentes ao cliente
+    local achList = {}
+    for achId, v in pairs(data.achievements or {}) do
+        if v then
+            for _, ach in ipairs(GameConfig.ACHIEVEMENTS) do
+                if ach.id == achId then table.insert(achList, ach); break end
+            end
+        end
+    end
+    AchievementRE:FireClient(player, achList)
     EventUpdateRE:FireClient(player, GameConfig.CURRENT_EVENT)
     BiomeUpdateRE:FireClient(player, currentInnerBases)
+    LoginStreakRE:FireClient(player, data.loginStreak, streakReward)
 end
 
 local function saveData(player)
@@ -435,6 +531,48 @@ local function pickBrainrotType(baseIdx, petRarityBonus)
 end
 
 -- =====================================================
+--  VISUAL 3D DE BRAINROT
+-- =====================================================
+local function buildBrainrotVisuals(part, rarity, isLua, rarColor)
+    local cfg = GameConfig.RARITY_MESH and GameConfig.RARITY_MESH[rarity]
+    if not cfg then return end
+    -- Anéis decorativos (cilindros horizontais)
+    for i = 1, cfg.rings do
+        local diam = 5 + i * 2
+        local ring = Instance.new("Part")
+        ring.Name         = "Ring_" .. i
+        ring.Shape        = Enum.PartType.Cylinder
+        ring.Size         = Vector3.new(0.25, diam, diam)
+        ring.Position     = part.Position
+        ring.Anchored     = true
+        ring.CanCollide   = false
+        ring.CastShadow   = false
+        ring.Color        = isLua and Color3.fromRGB(200, 0, 0) or rarColor
+        ring.Material     = Enum.Material.Neon
+        ring.Transparency = 0.45
+        ring.Parent       = part  -- filho do brainrot, não do folder
+    end
+    -- Partículas para raridades altas
+    if cfg.particles then
+        local att = Instance.new("Attachment"); att.Parent = part
+        local pe  = Instance.new("ParticleEmitter")
+        pe.Color    = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, rarColor),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255)),
+        })
+        pe.Size     = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.35),
+            NumberSequenceKeypoint.new(1, 0),
+        })
+        pe.Lifetime    = NumberRange.new(0.6, 1.8)
+        pe.Rate        = isLua and 35 or ((GameConfig.RARITY_RANK[rarity] or 1) * 4)
+        pe.Speed       = NumberRange.new(2, 7)
+        pe.SpreadAngle = Vector2.new(180, 180)
+        pe.Parent      = att
+    end
+end
+
+-- =====================================================
 --  SPAWN DE BRAINROT
 -- =====================================================
 local RARE_RANK   = 4   -- Épico
@@ -467,6 +605,7 @@ local function spawnBrainrot()
     part.Color      = isLua and Color3.fromRGB(200,0,0) or rarColor
     part.Material   = Enum.Material.Neon; part.CastShadow = false
     part.Parent     = BrainrotsFolder
+    buildBrainrotVisuals(part, bt.rarity, isLua, rarColor)
 
     local light = Instance.new("PointLight")
     light.Color      = isLua and Color3.fromRGB(255,0,0) or rarColor
@@ -499,10 +638,20 @@ local function spawnBrainrot()
     if bp2 then local ind=bp2:FindFirstChild("Indicator"); if ind then ind.Color=isLua and Color3.fromRGB(255,0,0) or rarColor end end
 
     local baseY=spawnY; local t=0; local conn
+    -- Coleta anéis para animação
+    local meshRings = {}
+    for _, c in ipairs(part:GetChildren()) do
+        if c:IsA("BasePart") then table.insert(meshRings, c) end
+    end
     conn = RunService.Heartbeat:Connect(function(dt)
         t=t+dt
         if not part or not part.Parent then conn:Disconnect(); return end
-        part.CFrame = CFrame.new(basePos.X, baseY+math.sin(t*1.8)*0.7, basePos.Z)*CFrame.Angles(0,t*0.9,0)
+        local yOff = baseY + math.sin(t*1.8)*0.7
+        part.CFrame = CFrame.new(basePos.X, yOff, basePos.Z) * CFrame.Angles(0, t*0.9, 0)
+        for i, ring in ipairs(meshRings) do
+            ring.CFrame = CFrame.new(basePos.X, yOff, basePos.Z)
+                * CFrame.Angles(math.rad(t*25*i), math.rad(t*15*i), math.rad(90))
+        end
     end)
 
     -- Anúncios
@@ -557,6 +706,28 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     local mutMult = meta:FindFirstChild("MutationMult") and meta.MutationMult.Value or 1
     local baseIdx = meta:FindFirstChild("BaseIndex")    and meta.BaseIndex.Value    or 0
 
+    -- Rebirth rarity upgrade: a cada REBIRTH_RARITY_UPGRADE_EVERY rebirths, +X% chance
+    local upgradeThresholds = math.floor(data.rebirths / (GameConfig.REBIRTH_RARITY_UPGRADE_EVERY or 3))
+    if upgradeThresholds > 0 and rarity ~= "OG" then
+        local upgradeChance = upgradeThresholds * (GameConfig.REBIRTH_RARITY_UPGRADE_CHANCE or 0.05)
+        if math.random() < upgradeChance then
+            local currentRank = GameConfig.RARITY_RANK[rarity] or 1
+            local nextRarity  = GameConfig.RARITY_ORDER[currentRank + 1]
+            if nextRarity then
+                local pool = {}
+                for _, bt2 in ipairs(GameConfig.BRAINROT_TYPES) do
+                    if bt2.rarity == nextRarity then table.insert(pool, bt2) end
+                end
+                if #pool > 0 then
+                    local upgBT = pool[math.random(1, #pool)]
+                    bName   = upgBT.name
+                    rarity  = nextRarity
+                    baseAura = upgBT.baseAura
+                end
+            end
+        end
+    end
+
     local rebirthMult = getAuraMultiplier(data.rebirths)
     local bonusMult   = getAuraBonusMult(data)
     local petMult     = getPetAuraBonus(data)
@@ -590,8 +761,28 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
         InventoryUpdateRE:FireClient(player, data.inventory)
     end
 
-    -- Missões
+    -- Missões diárias + semanais
     local missionChanged = advanceMission(data,"steal",{rarity=rarity,mutation=mutName})
+    local weeklyChanged  = advanceWeeklyMission(data,"steal",{rarity=rarity,mutation=mutName})
+    -- Compartilhar aura com time
+    local teamId = PlayerTeam[uid]
+    if teamId and Teams[teamId] then
+        local share = math.floor(totalGain * (GameConfig.TEAM_AURA_SHARE or 0.15))
+        for _, memberId in ipairs(Teams[teamId]) do
+            if memberId ~= uid then
+                local memberData   = PlayerData[memberId]
+                local memberPlayer = Players:GetPlayerByUserId(memberId)
+                if memberData and memberPlayer and share > 0 then
+                    local memberCap = getAuraCap(memberData.rebirths, memberData.prestige)
+                    memberData.aura = math.min(memberData.aura + share, memberCap)
+                    UpdateAuraRE:FireClient(memberPlayer, buildUpdatePayload(memberData))
+                    NotifyRE:FireClient(memberPlayer,
+                        string.format("🤝 Time: +%s aura de %s", formatBig(share), player.DisplayName),
+                        Color3.fromRGB(100, 200, 255))
+                end
+            end
+        end
+    end
 
     -- Conquistas
     checkAchievements(player,data,{rarity=rarity,mutation=mutName})
@@ -607,6 +798,14 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     end
     brainrotPart:Destroy()
 
+    -- Notificação global para roubos God+
+    local stealRank = GameConfig.RARITY_RANK[rarity] or 0
+    if stealRank >= DRAMA_RANK then
+        GlobalAnnounceRE:FireAllClients(
+            string.format("🚨 %s roubou [%s] %s!", player.DisplayName, rarity, bName),
+            GameConfig.RARITY_COLORS[rarity] or Color3.fromRGB(255,255,255))
+    end
+
     local rarColor = GameConfig.RARITY_COLORS[rarity] or Color3.fromRGB(255,255,255)
     local mutColor = Color3.fromRGB(255,255,255)
     for _,m in ipairs(GameConfig.MUTATIONS) do if m.name==mutName then mutColor=m.color;break end end
@@ -618,7 +817,8 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
 
     UpdateAuraRE:FireClient(player, buildUpdatePayload(data))
     IndexUpdateRE:FireClient(player, data.index)
-    if missionChanged then MissionUpdateRE:FireClient(player,data.missionData) end
+    if missionChanged  then MissionUpdateRE:FireClient(player, data.missionData) end
+    if weeklyChanged   then WeeklyMissionRE:FireClient(player, data.weeklyMissionData) end
     updateLeaderstats(player)
     updateLeaderboard(player, data)
 end)
@@ -634,6 +834,7 @@ RebirthEvent.OnServerEvent:Connect(function(player)
     end
     data.rebirths=data.rebirths+1; data.aura=0
     advanceMission(data,"rebirth",{})
+    advanceWeeklyMission(data,"rebirth",{})
     checkAchievements(player,data,{})
     addBPXP(player,data,GameConfig.BATTLEPASS_XP_REBIRTH)
     NotifyRE:FireClient(player,
@@ -641,6 +842,7 @@ RebirthEvent.OnServerEvent:Connect(function(player)
         Color3.fromRGB(255,215,0))
     UpdateAuraRE:FireClient(player,buildUpdatePayload(data))
     MissionUpdateRE:FireClient(player,data.missionData)
+    WeeklyMissionRE:FireClient(player,data.weeklyMissionData)
     updateLeaderstats(player); updateLeaderboard(player,data)
     applyUpgradesToPlayer(player,data); saveData(player)
 end)
@@ -895,6 +1097,86 @@ AdminEvent.OnServerEvent:Connect(function(player, cmd, arg1, arg2)
 end)
 
 -- =====================================================
+--  SISTEMA DE TIMES
+-- =====================================================
+TeamInviteRE.OnServerEvent:Connect(function(player, targetName)
+    local target = Players:FindFirstChild(targetName or "")
+    if not target or target == player then
+        NotifyRE:FireClient(player,"Jogador não encontrado!",Color3.fromRGB(255,80,80)); return
+    end
+    if PlayerTeam[player.UserId] then
+        NotifyRE:FireClient(player,"Você já está em um time!",Color3.fromRGB(255,200,0)); return
+    end
+    if PlayerTeam[target.UserId] then
+        NotifyRE:FireClient(player,target.DisplayName.." já está em um time!",Color3.fromRGB(255,200,0)); return
+    end
+    TeamInviteRE:FireClient(target, player.DisplayName)
+    NotifyRE:FireClient(player,"Convite enviado para "..target.DisplayName.."!",Color3.fromRGB(100,200,255))
+end)
+
+TeamAcceptEvent.OnServerEvent:Connect(function(player, inviterName)
+    local inviter = Players:FindFirstChild(inviterName or "")
+    if not inviter or inviter == player then return end
+    if PlayerTeam[player.UserId] or PlayerTeam[inviter.UserId] then
+        NotifyRE:FireClient(player,"Um dos jogadores já está em um time!",Color3.fromRGB(255,200,0)); return
+    end
+    teamCounter = teamCounter + 1
+    local tid = "T"..teamCounter
+    Teams[tid] = {player.UserId, inviter.UserId}
+    PlayerTeam[player.UserId]   = tid
+    PlayerTeam[inviter.UserId]  = tid
+    local members = {player.DisplayName, inviter.DisplayName}
+    TeamUpdateRE:FireClient(player,  {members=members, teamId=tid})
+    TeamUpdateRE:FireClient(inviter, {members=members, teamId=tid})
+    NotifyRE:FireClient(player,  "🤝 Time formado com "..inviter.DisplayName.."!",Color3.fromRGB(100,200,255))
+    NotifyRE:FireClient(inviter, "🤝 "..player.DisplayName.." formou um time com você!",Color3.fromRGB(100,200,255))
+end)
+
+TeamLeaveEvent.OnServerEvent:Connect(function(player)
+    local tid = PlayerTeam[player.UserId]; if not tid then return end
+    local team = Teams[tid]
+    PlayerTeam[player.UserId] = nil
+    if team then
+        for _, memberId in ipairs(team) do
+            if memberId ~= player.UserId then
+                PlayerTeam[memberId] = nil
+                local mp = Players:GetPlayerByUserId(memberId)
+                if mp then
+                    NotifyRE:FireClient(mp, player.DisplayName.." saiu do time!",Color3.fromRGB(255,150,0))
+                    TeamUpdateRE:FireClient(mp, nil)
+                end
+            end
+        end
+        Teams[tid] = nil
+    end
+    NotifyRE:FireClient(player,"Você saiu do time.",Color3.fromRGB(180,180,180))
+    TeamUpdateRE:FireClient(player, nil)
+end)
+
+-- =====================================================
+--  MISSÕES SEMANAIS: CLAIM
+-- =====================================================
+ClaimWeeklyEvent.OnServerEvent:Connect(function(player, missionId)
+    local data=PlayerData[player.UserId]; if not data or not data.weeklyMissionData then return end
+    local wmd=data.weeklyMissionData
+    local isActive=false
+    for _,id in ipairs(wmd.active) do if id==missionId then isActive=true; break end end
+    if not isActive or wmd.claimed[missionId] then return end
+    local mission=nil
+    for _,m in ipairs(GameConfig.WEEKLY_MISSIONS) do if m.id==missionId then mission=m; break end end
+    if not mission then return end
+    if (wmd.progress[missionId] or 0)<mission.target then
+        NotifyRE:FireClient(player,"Missão semanal incompleta!",Color3.fromRGB(255,80,80)); return
+    end
+    wmd.claimed[missionId]=true
+    data.aura=math.min(data.aura+mission.reward, getAuraCap(data.rebirths,data.prestige))
+    NotifyRE:FireClient(player,string.format("✦ MISSÃO SEMANAL: %s! +%s aura!",mission.name,formatBig(mission.reward)),Color3.fromRGB(255,140,0))
+    UpdateAuraRE:FireClient(player,buildUpdatePayload(data))
+    WeeklyMissionRE:FireClient(player,wmd)
+    updateLeaderstats(player)
+end)
+
+-- =====================================================
 --  TUTORIAL COMPLETO
 -- =====================================================
 local TutorialDoneEvent = makeRE("TutorialDone")
@@ -918,6 +1200,25 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
+    -- Limpa time ao sair
+    local tid = PlayerTeam[player.UserId]
+    if tid then
+        local team = Teams[tid]
+        PlayerTeam[player.UserId] = nil
+        if team then
+            for _, memberId in ipairs(team) do
+                if memberId ~= player.UserId then
+                    PlayerTeam[memberId] = nil
+                    local mp = Players:GetPlayerByUserId(memberId)
+                    if mp then
+                        NotifyRE:FireClient(mp, player.DisplayName.." saiu do jogo — time dissolvido!",Color3.fromRGB(255,150,0))
+                        TeamUpdateRE:FireClient(mp, nil)
+                    end
+                end
+            end
+            Teams[tid] = nil
+        end
+    end
     saveData(player); PlayerData[player.UserId]=nil; StealCooldown[player.UserId]=nil
 end)
 

@@ -44,6 +44,13 @@ local GetLeaderboardRF   = RemoteFolder:WaitForChild("GetLeaderboard")
 local TutorialDoneEvent  = RemoteFolder:WaitForChild("TutorialDone")
 local AdminCommandEvent  = RemoteFolder:WaitForChild("AdminCommand")
 local CollectBrainrotEv  = RemoteFolder:WaitForChild("CollectBrainrot")
+local WeeklyMissionRE    = RemoteFolder:WaitForChild("WeeklyMissionUpdate")
+local ClaimWeeklyEvent   = RemoteFolder:WaitForChild("ClaimWeeklyMission")
+local LoginStreakRE       = RemoteFolder:WaitForChild("LoginStreak")
+local TeamInviteRE       = RemoteFolder:WaitForChild("TeamInvite")
+local TeamAcceptEvent    = RemoteFolder:WaitForChild("TeamAccept")
+local TeamLeaveEvent     = RemoteFolder:WaitForChild("TeamLeave")
+local TeamUpdateRE       = RemoteFolder:WaitForChild("TeamUpdate")
 
 -- =====================================================
 --  HELPERS
@@ -117,6 +124,14 @@ local sfxPrestige= makeSound(507109592,  sfxVol * 1.5)
 local sfxAmbient = makeSound(1843402343, musicVol, true)
 pcall(function() sfxAmbient:Play() end)
 
+-- SFX por raridade (feature 5)
+local sfxPerRarity = {}
+if GameConfig.RARITY_SFX then
+    for rarity, assetId in pairs(GameConfig.RARITY_SFX) do
+        sfxPerRarity[rarity] = makeSound(assetId, sfxVol * 0.8)
+    end
+end
+
 local function setMusicVol(v) musicVol = v; sfxAmbient.Volume = v end
 local function setSfxVol(v)
     sfxVol = v
@@ -126,6 +141,7 @@ local function setSfxVol(v)
     sfxMission.Volume = v
     sfxAchiev.Volume  = v
     sfxPrestige.Volume= v * 1.5
+    for _, s in pairs(sfxPerRarity) do s.Volume = v * 0.8 end
 end
 
 -- =====================================================
@@ -289,10 +305,20 @@ local StealMutLabel = makeTL(StealPrompt, {
     Text="✦ Básico ×1", TextColor3=Color3.fromRGB(180,180,180), TextScaled=true, Font=Enum.Font.GothamBold,
 })
 local StealKeyLabel = makeTL(StealPrompt, {
-    Size=UDim2.new(1,0,0.18,0), Position=UDim2.new(0,0,0.82,0), BackgroundTransparency=1,
+    Size=UDim2.new(0.7,0,0.18,0), Position=UDim2.new(0,0,0.82,0), BackgroundTransparency=1,
     Text=isMobile and "Botão ROUBAR →" or "[E] para Roubar",
     TextColor3=Color3.fromRGB(255,210,50), TextScaled=true, Font=Enum.Font.GothamBold,
 })
+-- Cooldown visual bar (feature 3)
+local CooldownBg = makeFrame(StealPrompt, {
+    Size=UDim2.new(0.28,0,0.14,0), Position=UDim2.new(0.70,0,0.84,0),
+    BackgroundColor3=Color3.fromRGB(30,30,50), BorderSizePixel=0,
+})
+round(CooldownBg, 4)
+local CooldownBar = makeFrame(CooldownBg, {
+    Size=UDim2.new(1,0,1,0), BackgroundColor3=Color3.fromRGB(80,220,255), BorderSizePixel=0,
+})
+round(CooldownBar, 4)
 
 local mobileStealSize = isMobile and 150 or 130
 local MobileStealBtn = makeTB(ScreenGui, {
@@ -441,6 +467,14 @@ local playerDot = makeFrame(MiniMapPanel, {
     BackgroundColor3=Color3.fromRGB(255,255,255), BorderSizePixel=0, ZIndex=3,
 })
 round(playerDot, 5)
+-- Contador de brainrots ativos (feature 13)
+local BrainrotCountLabel = makeTL(MiniMapPanel, {
+    Size=UDim2.new(1,0,0,16), Position=UDim2.new(0,0,1,-16),
+    BackgroundColor3=Color3.fromRGB(8,8,16), BackgroundTransparency=0.1,
+    Text="🧿 0", TextColor3=Color3.fromRGB(160,220,160),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=4,
+})
+round(BrainrotCountLabel, 4)
 
 -- =====================================================
 --  BOTTOM BUTTON BAR
@@ -465,6 +499,7 @@ local AchievBtn   = makeBarBtn(392,   "🏆 CONQ",     Color3.fromRGB(255,220,80
 local BPBtn       = makeBarBtn(468,   "🎖 PASSE",    Color3.fromRGB(180,255,220), Color3.fromRGB(80,200,140))
 local LBBtn       = makeBarBtn(544,   "🌍 RANK",     Color3.fromRGB(255,180,120), Color3.fromRGB(200,120,60))
 local SettingsBtn = makeBarBtn(620,   "⚙ VOL",      Color3.fromRGB(180,180,180), Color3.fromRGB(120,120,120))
+local TeamBtn     = makeBarBtn(696,   "🤝 TIME",     Color3.fromRGB(100,200,255), Color3.fromRGB(60,140,200))
 
 -- =====================================================
 --  PANEL BUILDER HELPERS
@@ -564,26 +599,43 @@ UpgradeBtn.Activated:Connect(function() UpgradePanel.Visible = not UpgradePanel.
 -- =====================================================
 --  MISSIONS PANEL
 -- =====================================================
-local MissionsPanel, CloseMissionsBtn = makePanel("📋  MISSÕES DIÁRIAS", Color3.fromRGB(100,100,220))
-MissionsPanel.Size = UDim2.new(0,500,0,360)
-MissionsPanel.Position = UDim2.new(0.5,-250,0.5,-180)
+local MissionsPanel, CloseMissionsBtn = makePanel("📋  MISSÕES", Color3.fromRGB(100,100,220))
+MissionsPanel.Size = UDim2.new(0,500,0,410)
+MissionsPanel.Position = UDim2.new(0.5,-250,0.5,-205)
 local missionRows = {}
 local localMissions = nil
+local localWeeklyMissions = nil
 
-local function buildMissionsUI(md)
+-- Abas Diárias / Semanais
+local misTabBar = makeFrame(MissionsPanel, {
+    Size=UDim2.new(1,0,0,34), Position=UDim2.new(0,0,0,44),
+    BackgroundColor3=Color3.fromRGB(10,10,20), BorderSizePixel=0, ZIndex=9,
+})
+local function makeMisTab(text, xPos)
+    local b = makeTB(misTabBar, {
+        Size=UDim2.new(0.48,0,1,-4), Position=UDim2.new(xPos,0,0,2),
+        BackgroundColor3=Color3.fromRGB(30,30,50), BorderSizePixel=0,
+        Text=text, TextColor3=Color3.fromRGB(160,160,200), TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=10,
+    })
+    round(b, 8); return b
+end
+local MisTabDaily  = makeMisTab("📋 Diárias",  0.01)
+local MisTabWeekly = makeMisTab("🌟 Semanais", 0.51)
+local currentMisTab = "daily"
+
+local function buildMissionsRowList(panel, missions_cfg, md, startY, claimEvent)
     for _, r in pairs(missionRows) do r:Destroy() end; missionRows = {}
     if not md then return end
-    local startY = 52
     for _, mId in ipairs(md.active) do
         local mission = nil
-        for _, m in ipairs(GameConfig.DAILY_MISSIONS) do if m.id==mId then mission=m; break end end
+        for _, m in ipairs(missions_cfg) do if m.id==mId then mission=m; break end end
         if not mission then continue end
         local progress = md.progress[mId] or 0
         local claimed  = md.claimed[mId] or false
         local complete = progress >= mission.target
         local pct = math.clamp(progress/mission.target, 0, 1)
 
-        local row = makeFrame(MissionsPanel, {
+        local row = makeFrame(panel, {
             Size=UDim2.new(1,-20,0,80), Position=UDim2.new(0,10,0,startY),
             BackgroundColor3=claimed and Color3.fromRGB(10,10,10) or (complete and Color3.fromRGB(20,30,10) or Color3.fromRGB(12,12,24)),
             BackgroundTransparency=0.1, BorderSizePixel=0, ZIndex=9,
@@ -615,11 +667,33 @@ local function buildMissionsUI(md)
         })
         round(claimBtn, 8)
         if complete and not claimed then
-            claimBtn.Activated:Connect(function() ClaimMissionEvent:FireServer(mId); pcall(function() sfxMission:Play() end) end)
+            local capturedId = mId
+            claimBtn.Activated:Connect(function()
+                claimEvent:FireServer(capturedId)
+                pcall(function() sfxMission:Play() end)
+            end)
         end
         table.insert(missionRows, row); startY = startY + 86
     end
 end
+
+local function buildMissionsUI(md)
+    if currentMisTab == "daily" then
+        buildMissionsRowList(MissionsPanel, GameConfig.DAILY_MISSIONS, md, 86, ClaimMissionEvent)
+    else
+        buildMissionsRowList(MissionsPanel, GameConfig.WEEKLY_MISSIONS, localWeeklyMissions, 86, ClaimWeeklyEvent)
+    end
+end
+
+local function setMisTab(tab)
+    currentMisTab = tab
+    MisTabDaily.BackgroundColor3  = (tab=="daily")  and Color3.fromRGB(60,60,160) or Color3.fromRGB(30,30,50)
+    MisTabWeekly.BackgroundColor3 = (tab=="weekly") and Color3.fromRGB(60,60,160) or Color3.fromRGB(30,30,50)
+    buildMissionsUI(localMissions)
+end
+setMisTab("daily")
+MisTabDaily.Activated:Connect(function()  setMisTab("daily")  end)
+MisTabWeekly.Activated:Connect(function() setMisTab("weekly") end)
 
 CloseMissionsBtn.Activated:Connect(function() MissionsPanel.Visible = false end)
 MissionsBtn.Activated:Connect(function()
@@ -836,7 +910,7 @@ local function buildInventoryUI()
             Text="["..item.rarity.."]", TextColor3=rarColor, TextScaled=true, Font=Enum.Font.Gotham,
             TextXAlignment=Enum.TextXAlignment.Center, ZIndex=11,})
         makeTL(row, {Size=UDim2.new(0.28,0,1,0), Position=UDim2.new(0.68,0,0,0), BackgroundTransparency=1,
-            Text=item.mutationName~="Básico" and ("✦"..item.mutationName) or "",
+            Text=(item.mutation or item.mutationName or "")~="Básico" and ("✦"..(item.mutation or item.mutationName or "")) or "",
             TextColor3=Color3.fromRGB(200,200,100), TextScaled=true, Font=Enum.Font.Gotham,
             TextXAlignment=Enum.TextXAlignment.Right, ZIndex=11,})
         local capturedItem = item
@@ -875,7 +949,7 @@ TradeBtn.Activated:Connect(function()
     if targetName == "" or targetName == "Nome do jogador..." then
         showNotification("Digite o nome do jogador alvo!", Color3.fromRGB(255,100,100)); return
     end
-    TradeProposeEvent:FireServer(selectedItems[1].id, targetName)
+    TradeProposeEvent:FireServer(targetName, selectedItems[1].id)
     showNotification("Proposta de troca enviada para "..targetName.."!", Color3.fromRGB(100,180,255))
     selectedItems = {}
     CombineBtn.Text = "🔀 Combinar (0/2)"
@@ -1271,6 +1345,10 @@ makeSlider(SettingsPanel, "🔊 Volume Efeitos", 116, sfxVol/1.0,  function(v) s
 
 CloseSettBtn.Activated:Connect(function() SettingsPanel.Visible = false end)
 SettingsBtn.Activated:Connect(function() SettingsPanel.Visible = not SettingsPanel.Visible end)
+TeamBtn.Activated:Connect(function()
+    TeamInviteFrame.Visible = not TeamInviteFrame.Visible
+    TeamBtn.BackgroundColor3 = TeamInviteFrame.Visible and Color3.fromRGB(30,60,90) or Color3.fromRGB(15,15,25)
+end)
 
 -- =====================================================
 --  TUTORIAL POPUP
@@ -1343,6 +1421,149 @@ TutSkipBtn.Activated:Connect(function()
 end)
 
 -- =====================================================
+--  REBIRTH POPUP (feature 12)
+-- =====================================================
+local RebirthPopup = makeFrame(ScreenGui, {
+    Size=UDim2.new(0,380,0,180), Position=UDim2.new(0.5,-190,0.5,-90),
+    BackgroundColor3=Color3.fromRGB(10,8,20), BackgroundTransparency=0.05,
+    BorderSizePixel=0, Visible=false, ZIndex=25,
+})
+round(RebirthPopup, 18)
+stroke(RebirthPopup, Color3.fromRGB(255,215,0), 2.5)
+local rbpTitle = makeTL(RebirthPopup, {
+    Size=UDim2.new(1,0,0,50), BackgroundColor3=Color3.fromRGB(20,15,5), BackgroundTransparency=0,
+    Text="✨ RENASCIMENTO!", TextColor3=Color3.fromRGB(255,215,0),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=26,
+})
+round(rbpTitle, 18)
+local rbpMult = makeTL(RebirthPopup, {
+    Size=UDim2.new(1,-20,0,44), Position=UDim2.new(0,10,0,54),
+    BackgroundTransparency=1, Text="Multiplicador: x1",
+    TextColor3=Color3.fromRGB(255,255,180), TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=26,
+})
+local rbpCap = makeTL(RebirthPopup, {
+    Size=UDim2.new(1,-20,0,38), Position=UDim2.new(0,10,0,100),
+    BackgroundTransparency=1, Text="Novo Cap: 500",
+    TextColor3=Color3.fromRGB(180,255,180), TextScaled=true, Font=Enum.Font.Gotham, ZIndex=26,
+})
+local rbpRank = makeTL(RebirthPopup, {
+    Size=UDim2.new(1,-20,0,36), Position=UDim2.new(0,10,0,138),
+    BackgroundTransparency=1, Text="Rank: Novato",
+    TextColor3=Color3.fromRGB(200,200,255), TextScaled=true, Font=Enum.Font.Gotham, ZIndex=26,
+})
+
+local REBIRTH_RANKS = {"Novato","Ladrão","Furtivo","Épico","Lendário","Mítico","Deus","Secreto","O ORIGINAL"}
+local function showRebirthPopup(rb, mult, cap)
+    local rank = REBIRTH_RANKS[math.min(rb, #REBIRTH_RANKS)] or "Lendário"
+    rbpTitle.Text = "✨ RENASCIMENTO #"..rb.."!"
+    rbpMult.Text  = "Multiplicador: x"..formatNum(mult)
+    rbpCap.Text   = "Novo Cap de Aura: "..formatNum(cap)
+    rbpRank.Text  = "Rank: "..rank
+    RebirthPopup.Visible = true
+    RebirthPopup.BackgroundTransparency = 0.05
+    task.delay(3.5, function()
+        TweenService:Create(RebirthPopup, TweenInfo.new(0.5), {BackgroundTransparency=1}):Play()
+        task.wait(0.55); RebirthPopup.Visible = false; RebirthPopup.BackgroundTransparency = 0.05
+    end)
+end
+
+-- =====================================================
+--  TIME POPUP (convite de time)
+-- =====================================================
+local TeamPopup = makeFrame(ScreenGui, {
+    Size=UDim2.new(0,380,0,160), Position=UDim2.new(0.5,-190,0.5,120),
+    BackgroundColor3=Color3.fromRGB(8,15,25), BackgroundTransparency=0.05,
+    BorderSizePixel=0, Visible=false, ZIndex=22,
+})
+round(TeamPopup, 14)
+stroke(TeamPopup, Color3.fromRGB(100,200,255), 2)
+local teamPopupTitle = makeTL(TeamPopup, {
+    Size=UDim2.new(1,0,0,44), BackgroundColor3=Color3.fromRGB(5,10,20), BackgroundTransparency=0,
+    Text="🤝 CONVITE DE TIME", TextColor3=Color3.fromRGB(100,200,255),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=23,
+})
+local teamPopupInfo = makeTL(TeamPopup, {
+    Size=UDim2.new(1,-16,0,44), Position=UDim2.new(0,8,0,48),
+    BackgroundTransparency=1, Text="Alguém quer formar um time!", TextColor3=Color3.fromRGB(220,220,220),
+    TextScaled=true, Font=Enum.Font.Gotham, TextWrapped=true, ZIndex=23,
+})
+local teamAccBtn = makeTB(TeamPopup, {
+    Size=UDim2.new(0.44,0,0,40), Position=UDim2.new(0.03,0,1,-50),
+    BackgroundColor3=Color3.fromRGB(20,100,20), BorderSizePixel=0,
+    Text="✔ Aceitar", TextColor3=Color3.fromRGB(180,255,180),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=23,
+})
+round(teamAccBtn, 10)
+local teamDecBtn = makeTB(TeamPopup, {
+    Size=UDim2.new(0.44,0,0,40), Position=UDim2.new(0.53,0,1,-50),
+    BackgroundColor3=Color3.fromRGB(100,20,20), BorderSizePixel=0,
+    Text="✕ Recusar", TextColor3=Color3.fromRGB(255,180,180),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=23,
+})
+round(teamDecBtn, 10)
+
+local pendingInviterName = nil
+teamAccBtn.Activated:Connect(function()
+    if pendingInviterName then TeamAcceptEvent:FireServer(pendingInviterName) end
+    TeamPopup.Visible = false; pendingInviterName = nil
+end)
+teamDecBtn.Activated:Connect(function()
+    TeamPopup.Visible = false; pendingInviterName = nil
+end)
+
+-- Team status label (top-left under stats)
+local TeamStatusLabel = makeTL(ScreenGui, {
+    Size=UDim2.new(0,210,0,26), Position=UDim2.new(0,12,0,180),
+    BackgroundColor3=Color3.fromRGB(8,15,25), BackgroundTransparency=0.2,
+    Text="", TextColor3=Color3.fromRGB(100,200,255),
+    TextScaled=true, Font=Enum.Font.GothamBold, BorderSizePixel=0, Visible=false,
+})
+round(TeamStatusLabel, 8)
+stroke(TeamStatusLabel, Color3.fromRGB(60,140,200), 1)
+
+local leaveTeamBtn = makeTB(ScreenGui, {
+    Size=UDim2.new(0,80,0,22), Position=UDim2.new(0,144,0,184),
+    BackgroundColor3=Color3.fromRGB(100,30,30), BorderSizePixel=0,
+    Text="Sair", TextColor3=Color3.fromRGB(255,180,180),
+    TextScaled=true, Font=Enum.Font.GothamBold, Visible=false, ZIndex=5,
+})
+round(leaveTeamBtn, 8)
+leaveTeamBtn.Activated:Connect(function() TeamLeaveEvent:FireServer() end)
+
+-- Team invite input (Settings panel area → separate mini bar)
+local TeamInviteFrame = makeFrame(ScreenGui, {
+    Size=UDim2.new(0,300,0,42), Position=UDim2.new(0,12,0,210),
+    BackgroundColor3=Color3.fromRGB(8,12,22), BackgroundTransparency=0.15,
+    BorderSizePixel=0, Visible=false, ZIndex=5,
+})
+round(TeamInviteFrame, 10)
+stroke(TeamInviteFrame, Color3.fromRGB(60,130,190), 1.5)
+local TeamInviteBox = Instance.new("TextBox")
+TeamInviteBox.Size = UDim2.new(0.64,0,1,0)
+TeamInviteBox.BackgroundTransparency = 1
+TeamInviteBox.Text = ""
+TeamInviteBox.PlaceholderText = "Nome do jogador..."
+TeamInviteBox.TextColor3 = Color3.fromRGB(200,200,200)
+TeamInviteBox.PlaceholderColor3 = Color3.fromRGB(100,100,120)
+TeamInviteBox.TextScaled = true
+TeamInviteBox.Font = Enum.Font.Gotham
+TeamInviteBox.ClearTextOnFocus = true
+TeamInviteBox.ZIndex = 6
+TeamInviteBox.Parent = TeamInviteFrame
+
+local TeamInviteBtn = makeTB(TeamInviteFrame, {
+    Size=UDim2.new(0.34,0,0.8,0), Position=UDim2.new(0.64,0,0.1,0),
+    BackgroundColor3=Color3.fromRGB(20,60,100), BorderSizePixel=0,
+    Text="Convidar", TextColor3=Color3.fromRGB(150,210,255),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=6,
+})
+round(TeamInviteBtn, 8)
+TeamInviteBtn.Activated:Connect(function()
+    local name = TeamInviteBox.Text
+    if name ~= "" then TeamInviteRE:FireServer(name) end
+end)
+
+-- =====================================================
 --  CAMERA SHAKE
 -- =====================================================
 local function cameraShake(duration, magnitude)
@@ -1368,9 +1589,12 @@ local currentData = {
     totalStolen=0, upgrades={stealRange=0,walkSpeed=0,auraBonus=0},
     prestige=0, isVIP=false,
 }
-local lastMutation = "Básico"
-local lastRebirths = 0
-local lastPrestige = 0
+local lastMutation  = "Básico"
+local lastRebirths  = 0
+local lastPrestige  = 0
+local auraPulseT    = 0  -- para efeito de pulso quando aura >90%
+local stealCooldownTimer = 0  -- para cooldown visual do [E]
+local STEAL_COOLDOWN_DURATION = 0.5
 
 local function refreshUI()
     local d = currentData
@@ -1411,7 +1635,8 @@ UpdateAuraRE.OnClientEvent:Connect(function(payload)
     for k, v in pairs(payload) do currentData[k] = v end
     if currentData.rebirths > lastRebirths then
         pcall(function() sfxRebirth:Play() end)
-        showNotification("✨ REBIRTH! x"..tostring(currentData.multiplier).." multiplicador!", Color3.fromRGB(255,215,0))
+        showRebirthPopup(currentData.rebirths, currentData.multiplier, currentData.auraCap)
+        cameraShake(0.8, 0.3)
         lastRebirths = currentData.rebirths
     end
     if (currentData.prestige or 0) > lastPrestige then
@@ -1427,7 +1652,14 @@ end)
 NotifyRE.OnClientEvent:Connect(function(msg, color)
     showNotification(msg, color)
     if msg:find("Aura") and msg:sub(1,1)=="+" then
-        pcall(function() sfxSteal:Play() end)
+        -- Identifica raridade e toca SFX correspondente (feature 5)
+        local rarMatch = msg:match("%[(%a+)%]")
+        local played = false
+        if rarMatch and sfxPerRarity[rarMatch] then
+            pcall(function() sfxPerRarity[rarMatch]:Play() end)
+            played = true
+        end
+        if not played then pcall(function() sfxSteal:Play() end) end
     end
     local mutMatch = msg:match("%[(.-)%s×")
     if mutMatch then lastMutation=mutMatch; refreshUI() end
@@ -1458,7 +1690,13 @@ GlobalAnnounceRE.OnClientEvent:Connect(function(msg, color)
     showNotification(msg, color, true)
     LuaBannerLabel.Text = msg; LuaBanner.Visible = true
     TweenService:Create(LuaBanner,TweenInfo.new(0.3),{BackgroundTransparency=0.1}):Play()
-    if msg:find("LUA DE SANGUE") then pcall(function() sfxLua:Play() end) end
+    -- Efeito dramático de spawn (feature 4) e notificação de roubo raro (feature 14)
+    if msg:find("LUA DE SANGUE") then
+        pcall(function() sfxLua:Play() end)
+        cameraShake(1.2, 0.5)
+    elseif msg:find("🚨") or msg:find("⚡") then
+        cameraShake(0.8, 0.35)
+    end
     task.delay(5, function()
         TweenService:Create(LuaBanner,TweenInfo.new(0.5),{BackgroundTransparency=1}):Play()
         task.wait(0.52); LuaBanner.Visible=false; LuaBanner.BackgroundTransparency=0.1
@@ -1470,10 +1708,13 @@ InventoryUpdateRE.OnClientEvent:Connect(function(inv)
     if InvPanel.Visible then buildInventoryUI() end
 end)
 
-TradeOfferRE.OnClientEvent:Connect(function(tradeId, proposerName, itemName, itemRarity)
+TradeOfferRE.OnClientEvent:Connect(function(proposerName, item, tradeId)
+    -- Server fires: (proposerName, itemTable, tradeId)
     pendingTradeId = tradeId
-    TradePopupInfo.Text = proposerName.." quer trocar um item com você!\n\n"
-        ..proposerName.." oferece: "..itemName.." ["..itemRarity.."]"
+    local iName = (type(item)=="table") and (item.name or "?") or tostring(item)
+    local iRar  = (type(item)=="table") and (item.rarity or "?") or ""
+    TradePopupInfo.Text = (proposerName or "Alguém").." quer trocar um item com você!\n\n"
+        ..(proposerName or "").." oferece: "..iName.." ["..iRar.."]"
     TradePopup.Visible = true
 end)
 
@@ -1481,16 +1722,30 @@ TradeResultRE.OnClientEvent:Connect(function(success, msg)
     showNotification(msg, success and Color3.fromRGB(100,255,100) or Color3.fromRGB(255,100,100))
 end)
 
-PetUpdateRE.OnClientEvent:Connect(function(pets, activePet)
-    localPets = pets or {}
-    localActivePet = activePet
+PetUpdateRE.OnClientEvent:Connect(function(payload)
+    -- Server fires one table {owned=..., active=...}
+    local p = (type(payload)=="table") and payload or {}
+    localPets      = p.owned or {}
+    localActivePet = p.active
     if PetPanel.Visible then buildPetUI() end
 end)
 
-AchievementRE.OnClientEvent:Connect(function(achId, achName)
-    localAchievements[achId] = true
-    pcall(function() sfxAchiev:Play() end)
-    showNotification("🏆 CONQUISTA: "..achName, Color3.fromRGB(255,200,50), true)
+AchievementRE.OnClientEvent:Connect(function(unlockedList)
+    -- Server fires array of achievement tables [{id, name, ...}]
+    if type(unlockedList) ~= "table" then return end
+    local newUnlocks = false
+    for _, ach in ipairs(unlockedList) do
+        if ach and ach.id then
+            if not localAchievements[ach.id] then
+                localAchievements[ach.id] = true
+                newUnlocks = true
+                pcall(function() sfxAchiev:Play() end)
+                showNotification("🏆 CONQUISTA: "..(ach.name or ach.id), Color3.fromRGB(255,200,50), true)
+            else
+                localAchievements[ach.id] = true
+            end
+        end
+    end
     if AchievPanel.Visible then buildAchievUI() end
 end)
 
@@ -1537,6 +1792,61 @@ end)
 -- Prestige + Title change
 PrestigeBtn.Activated:Connect(function() PrestigeEvent:FireServer() end)
 
+WeeklyMissionRE.OnClientEvent:Connect(function(wmd)
+    localWeeklyMissions = wmd
+    if MissionsPanel.Visible and currentMisTab == "weekly" then
+        buildMissionsUI(localMissions)
+    end
+    -- Badge no botão se houver semanal para resgatar
+    if wmd then
+        local hasClaim = false
+        for _, mId in ipairs(wmd.active) do
+            local prog = wmd.progress[mId] or 0
+            for _, m in ipairs(GameConfig.WEEKLY_MISSIONS) do
+                if m.id==mId and prog>=m.target and not wmd.claimed[mId] then hasClaim=true; break end
+            end
+        end
+        if hasClaim then
+            MissionsBtn.BackgroundColor3 = Color3.fromRGB(80,50,10)
+            MissionsBtn.TextColor3 = Color3.fromRGB(255,180,50)
+        end
+    end
+end)
+
+LoginStreakRE.OnClientEvent:Connect(function(streak, reward)
+    if streak and streak > 0 then
+        local rewardText = reward and (" — Recompensa: "..reward.name) or ""
+        showNotification(
+            string.format("🔥 Streak de login: %d dia(s)!%s", streak, rewardText),
+            Color3.fromRGB(255,160,50), streak >= 7)
+    end
+end)
+
+TeamInviteRE.OnClientEvent:Connect(function(inviterName)
+    pendingInviterName = inviterName
+    teamPopupInfo.Text = inviterName.." quer formar um time com você!"
+    TeamPopup.Visible = true
+    task.delay(30, function()
+        if pendingInviterName == inviterName then
+            TeamPopup.Visible = false; pendingInviterName = nil
+        end
+    end)
+end)
+
+TeamUpdateRE.OnClientEvent:Connect(function(teamData)
+    if teamData and teamData.members then
+        local memberStr = table.concat(teamData.members, " & ")
+        TeamStatusLabel.Text = "🤝 "..memberStr
+        TeamStatusLabel.Visible = true
+        leaveTeamBtn.Visible = true
+        TeamInviteFrame.Visible = false
+    else
+        TeamStatusLabel.Visible = false
+        leaveTeamBtn.Visible = false
+        TeamInviteFrame.Visible = false
+    end
+end)
+
 -- =====================================================
 --  PROXIMITY / HEARTBEAT
 -- =====================================================
@@ -1548,6 +1858,35 @@ RunService.Heartbeat:Connect(function(dt)
     if not char then return end
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
+
+    -- Aura pulse quando >90% (feature 11)
+    local auraPct = math.clamp(currentData.aura / math.max(currentData.auraCap, 1), 0, 1)
+    if auraPct > 0.90 then
+        auraPulseT = auraPulseT + dt * 5
+        local alpha = (math.sin(auraPulseT) + 1) / 2
+        BarFill.BackgroundColor3 = Color3.fromRGB(255, math.floor(50 + alpha*80), math.floor(alpha*40))
+        local strokeThick = 2 + alpha * 2
+        TweenService:Create(AuraPanel:FindFirstChildWhichIsA("UIStroke") or stroke(AuraPanel, Color3.fromRGB(255,200,50),2),
+            TweenInfo.new(0.05), {}):Play()
+    else
+        auraPulseT = 0
+    end
+
+    -- Cooldown visual (feature 3)
+    if stealCooldownTimer > 0 then
+        stealCooldownTimer = math.max(0, stealCooldownTimer - dt)
+        local pct = stealCooldownTimer / STEAL_COOLDOWN_DURATION
+        CooldownBar.Size = UDim2.new(pct, 0, 1, 0)
+        CooldownBar.BackgroundColor3 = pct > 0.5 and Color3.fromRGB(255,80,80) or Color3.fromRGB(80,220,255)
+    else
+        CooldownBar.Size = UDim2.new(1, 0, 1, 0)
+    end
+
+    -- Contador de brainrots no mapa (feature 13)
+    local brainrotsFolder = workspace:FindFirstChild("Brainrots")
+    if brainrotsFolder then
+        BrainrotCountLabel.Text = "🧿 " .. #brainrotsFolder:GetChildren()
+    end
 
     -- Mini-map player dot
     local px, pz = worldToMap(root.Position.X, root.Position.Z)
@@ -1646,8 +1985,8 @@ end
 --  INPUT
 -- =====================================================
 local function doSteal()
-    if nearestBrainrot and nearestBrainrot.Parent then
-        autoStealTimer = 0
+    if nearestBrainrot and nearestBrainrot.Parent and stealCooldownTimer <= 0 then
+        stealCooldownTimer = STEAL_COOLDOWN_DURATION
         StealEvent:FireServer(nearestBrainrot)
     end
 end

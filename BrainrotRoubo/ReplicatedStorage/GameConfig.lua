@@ -308,4 +308,62 @@ GameConfig.INVENTORY_MAX_SLOTS = 50
 -- =====================================================
 GameConfig.BIOME_ROTATION_INTERVAL = 300   -- segundos (5 min)
 
+-- =====================================================
+--  NOVOS SISTEMAS (v3)
+-- =====================================================
+-- Visual 3D por raridade: quantos anéis decorativos
+GameConfig.RARITY_MESH = {
+    Comum    = { rings=0, particles=false },
+    Incomum  = { rings=0, particles=false },
+    Raro     = { rings=0, particles=true  },
+    Epico    = { rings=1, particles=true  },
+    Lendario = { rings=1, particles=true  },
+    Mitico   = { rings=1, particles=true  },
+    God      = { rings=2, particles=true  },
+    Secret   = { rings=2, particles=true  },
+    OG       = { rings=3, particles=true  },
+}
+
+-- SFX por raridade (asset IDs do Roblox)
+GameConfig.RARITY_SFX = {
+    Comum    = 142070081,
+    Incomum  = 255670561,
+    Raro     = 616576400,
+    Epico    = 190840006,
+    Lendario = 743521451,
+    Mitico   = 145556083,
+    God      = 507771019,
+    Secret   = 278062209,
+    OG       = 1369158552,
+}
+
+-- Prestígio escala o CAP de aura de forma mais agressiva
+GameConfig.PRESTIGE_CAP_MULT             = 3.0
+
+-- Rebirth aumenta chance de upgrade de raridade ao roubar
+GameConfig.REBIRTH_RARITY_UPGRADE_CHANCE = 0.05   -- 5% por threshold
+GameConfig.REBIRTH_RARITY_UPGRADE_EVERY  = 3      -- a cada 3 rebirths
+
+-- Sistema de times
+GameConfig.TEAM_AURA_SHARE     = 0.15  -- 15% da aura vai pro companheiro de time
+GameConfig.TEAM_INVITE_TIMEOUT = 30    -- segundos antes do convite expirar
+
+-- Missões semanais (todas ativas ao mesmo tempo)
+GameConfig.WEEKLY_MISSIONS = {
+    { id="wsteal500", name="Ladrão Semanal",    desc="Roube 500 brainrots esta semana",   type="steal",    target=500,  reward=500000  },
+    { id="wget_god",  name="Caçador de Deuses", desc="Roube 1 God ou melhor esta semana", type="rarityMin",rarityMin=7, target=1,     reward=2000000 },
+    { id="wrebirth3", name="Triplicidade",       desc="Faça 3 rebirths esta semana",       type="rebirth",  target=3,    reward=300000  },
+    { id="wgetlua",   name="Lua da Semana",      desc="Roube 1 Lua de Sangue esta semana", type="mutation", mutation="Lua de Sangue", target=1, reward=1000000 },
+}
+
+-- Streak de login
+GameConfig.LOGIN_STREAK_REWARDS = {
+    [1]  = { type="aura",  amount=1000,   name="1.000 Aura"       },
+    [3]  = { type="aura",  amount=10000,  name="10.000 Aura"      },
+    [7]  = { type="pet",   id="ratinho",  name="Pet Ratinho"      },
+    [14] = { type="pet",   id="gato",     name="Pet Gato Místico" },
+    [30] = { type="title", id="lenda",    name="Título: Lenda"    },
+}
+GameConfig.LOGIN_STREAK_MAX_GAP = 2  -- dias sem logar antes de resetar streak
+
 return GameConfig
