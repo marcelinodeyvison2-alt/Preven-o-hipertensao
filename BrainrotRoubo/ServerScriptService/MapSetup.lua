@@ -296,4 +296,64 @@ for _, idx in ipairs({9, 10, 11, 12}) do
     pillarLight.Parent     = pillar
 end
 
-print("[BrainrotRoubo] Mapa gerado com " .. #GameConfig.BASE_POSITIONS .. " bases e biomas!")
+-- =====================================================
+--  NPC VENDEDOR
+-- =====================================================
+local vendedor = Instance.new("Part")
+vendedor.Name       = "VendedorNPC"
+vendedor.Size       = Vector3.new(2.5, 5, 2.5)
+vendedor.Position   = Vector3.new(0, 2.5, -16)
+vendedor.Anchored   = true
+vendedor.CanCollide = true
+vendedor.BrickColor = BrickColor.new("Reddish brown")
+vendedor.Material   = Enum.Material.SmoothPlastic
+vendedor.Parent     = workspace
+
+local vendHead = makePart({
+    Name       = "VendedorHead",
+    Shape      = Enum.PartType.Ball,
+    Size       = Vector3.new(2, 2, 2),
+    Position   = Vector3.new(0, 6.3, -16),
+    BrickColor = BrickColor.new("Brick yellow"),
+    Material   = Enum.Material.SmoothPlastic,
+    CanCollide = false,
+})
+
+local vendBB = Instance.new("BillboardGui")
+vendBB.Size        = UDim2.new(0, 200, 0, 52)
+vendBB.StudsOffset = Vector3.new(0, 2.5, 0)
+vendBB.AlwaysOnTop = false
+vendBB.Parent      = vendHead
+
+local vendEmoji = Instance.new("TextLabel")
+vendEmoji.Size                   = UDim2.new(1, 0, 0.52, 0)
+vendEmoji.BackgroundTransparency = 1
+vendEmoji.Text                   = "🧙 Zé das Upgrades"
+vendEmoji.TextColor3             = Color3.fromRGB(255, 220, 120)
+vendEmoji.TextStrokeTransparency = 0
+vendEmoji.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+vendEmoji.TextScaled             = true
+vendEmoji.Font                   = Enum.Font.GothamBold
+vendEmoji.Parent                 = vendBB
+
+local vendSub = Instance.new("TextLabel")
+vendSub.Size                   = UDim2.new(1, 0, 0.38, 0)
+vendSub.Position               = UDim2.new(0, 0, 0.55, 0)
+vendSub.BackgroundTransparency = 1
+vendSub.Text                   = "[F] Comprar upgrades"
+vendSub.TextColor3             = Color3.fromRGB(200, 200, 200)
+vendSub.TextStrokeTransparency = 0.3
+vendSub.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+vendSub.TextScaled             = true
+vendSub.Font                   = Enum.Font.Gotham
+vendSub.Parent                 = vendBB
+
+local pp = Instance.new("ProximityPrompt")
+pp.ActionText            = "Comprar Upgrades"
+pp.ObjectText            = "Zé das Upgrades"
+pp.KeyboardKeyCode       = Enum.KeyCode.F
+pp.HoldDuration          = 0
+pp.MaxActivationDistance = 10
+pp.Parent                = vendedor
+
+print("[BrainrotRoubo] Mapa gerado com " .. #GameConfig.BASE_POSITIONS .. " bases, biomas e NPC Vendedor!")

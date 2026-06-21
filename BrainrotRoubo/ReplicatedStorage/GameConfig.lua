@@ -187,4 +187,125 @@ for i, r in ipairs(GameConfig.RARITY_ORDER) do
     GameConfig.RARITY_RANK[r] = i
 end
 
+-- =====================================================
+--  PETS
+-- =====================================================
+GameConfig.PETS = {
+    { id="ratinho",  name="Ratinho Brainrot",  icon="🐭", cost=5000,    auraBonus=0.05, rarityBonus=0    },
+    { id="gato",     name="Gato Místico",      icon="🐱", cost=25000,   auraBonus=0.10, rarityBonus=0    },
+    { id="corvo",    name="Corvo das Sombras", icon="🐦", cost=80000,   auraBonus=0,    rarityBonus=0.05 },
+    { id="dragao",   name="Dragão Épico",      icon="🐉", cost=300000,  auraBonus=0.20, rarityBonus=0.10 },
+    { id="fantasma", name="Fantasma OG",       icon="👻", cost=2000000, auraBonus=0.50, rarityBonus=0.20 },
+}
+
+-- =====================================================
+--  PRESTÍGIO
+-- =====================================================
+GameConfig.MAX_REBIRTHS_FOR_PRESTIGE = 8
+GameConfig.MAX_PRESTIGE              = 5
+GameConfig.PRESTIGE_MULTIPLIER       = 1.5   -- por nível (multiplicativo)
+
+-- =====================================================
+--  CONQUISTAS
+-- =====================================================
+GameConfig.ACHIEVEMENTS = {
+    { id="first_steal",  name="Primeiro Roubo",      desc="Roube 1 brainrot",          icon="🎯", type="totalStolen", threshold=1     },
+    { id="steal_50",     name="Mão Leve",            desc="Roube 50 brainrots",         icon="💪", type="totalStolen", threshold=50    },
+    { id="steal_500",    name="Ladrão Pro",          desc="Roube 500 brainrots",        icon="⚡", type="totalStolen", threshold=500   },
+    { id="steal_5000",   name="Rei do Roubo",        desc="Roube 5.000 brainrots",      icon="👑", type="totalStolen", threshold=5000  },
+    { id="rebirth_1",    name="Renascido",           desc="Faça 1 rebirth",             icon="✨", type="rebirths",    threshold=1     },
+    { id="rebirth_5",    name="Cinco Vidas",         desc="Faça 5 rebirths",            icon="🌟", type="rebirths",    threshold=5     },
+    { id="rebirth_max",  name="Rebirth Máximo",      desc="Chegue ao rebirth 8",        icon="🔱", type="rebirths",    threshold=8     },
+    { id="got_raro",     name="Raridade Descoberta", desc="Roube 1 Raro",               icon="💎", type="rarity",      rarity="Raro"    },
+    { id="got_lendario", name="Lendário Capturado",  desc="Roube 1 Lendário",           icon="⭐", type="rarity",      rarity="Lendario"},
+    { id="got_mitico",   name="Poder Mítico",        desc="Roube 1 Mítico",             icon="🔥", type="rarity",      rarity="Mitico"  },
+    { id="got_god",      name="Toque Divino",        desc="Roube 1 God",                icon="💫", type="rarity",      rarity="God"     },
+    { id="got_secret",   name="O Segredo",           desc="Roube 1 Secret",             icon="🌑", type="rarity",      rarity="Secret"  },
+    { id="got_og",       name="O ORIGINAL",          desc="Roube o OG — 1 em 1.000.000",icon="🏆",type="rarity",      rarity="OG"      },
+    { id="got_lua",      name="Lua de Sangue",       desc="Roube 1 Lua de Sangue",      icon="🌑", type="mutation",    mutation="Lua de Sangue" },
+    { id="prestige_1",   name="Prestigiado",         desc="Faça 1 prestígio",           icon="💎", type="prestige",    threshold=1     },
+}
+
+-- =====================================================
+--  TÍTULOS DESBLOQUEÁVEIS
+-- =====================================================
+GameConfig.TITLES = {
+    { id="iniciante",  name="Iniciante",    unlock="first_steal"  },
+    { id="ladrao",     name="Ladrão",       unlock="steal_50"     },
+    { id="pro",        name="Pro",          unlock="steal_500"    },
+    { id="rei",        name="Rei do Roubo", unlock="steal_5000"   },
+    { id="renascido",  name="Renascido",    unlock="rebirth_1"    },
+    { id="mitico",     name="Mítico",       unlock="got_mitico"   },
+    { id="divino",     name="Divino",       unlock="got_god"      },
+    { id="secreto",    name="???",          unlock="got_secret"   },
+    { id="original",   name="O ORIGINAL",   unlock="got_og"       },
+    { id="lenda",      name="Lenda",        unlock="rebirth_max"  },
+    { id="prestigiado",name="Prestigiado",  unlock="prestige_1"   },
+}
+
+-- =====================================================
+--  VIP / ADMIN
+-- =====================================================
+GameConfig.VIP_GAMEPASS_ID = 987654321   -- substitua pelo ID real
+GameConfig.VIP_AURA_BONUS  = 2.0         -- 2× aura para VIP
+GameConfig.VIP_CAP_BONUS   = 2           -- +2 no rebirthsCap base
+GameConfig.ADMIN_IDS       = {}          -- ex: { 123456789, 987654321 }
+
+-- =====================================================
+--  EVENTO ATUAL (nil = sem evento ativo)
+-- =====================================================
+GameConfig.CURRENT_EVENT = nil
+-- Exemplo:
+-- GameConfig.CURRENT_EVENT = {
+--     name      = "Fim de Semana de Ouro",
+--     icon      = "⭐",
+--     auraBonus = 2.0,
+--     rarBonus  = 1.5,    -- peso extra para raros
+--     color     = Color3.fromRGB(255, 215, 0),
+-- }
+
+-- =====================================================
+--  BATTLEPASS
+-- =====================================================
+GameConfig.BATTLEPASS_SEASON        = 1
+GameConfig.BATTLEPASS_LEVELS        = 30
+GameConfig.BATTLEPASS_XP_PER_LEVEL  = 1000
+GameConfig.BATTLEPASS_XP_STEAL      = 10
+GameConfig.BATTLEPASS_XP_REBIRTH    = 200
+GameConfig.BATTLEPASS_XP_PRESTIGE   = 1000
+GameConfig.BATTLEPASS_REWARDS = {
+    [1]  = { type="aura",  amount=5000,   name="5k Aura"         },
+    [5]  = { type="pet",   id="ratinho",  name="Pet Ratinho"     },
+    [10] = { type="aura",  amount=50000,  name="50k Aura"        },
+    [15] = { type="pet",   id="gato",     name="Pet Gato Místico"},
+    [20] = { type="title", id="lenda",    name="Título: Lenda"   },
+    [25] = { type="aura",  amount=500000, name="500k Aura"       },
+    [30] = { type="pet",   id="dragao",   name="Pet Dragão Épico"},
+}
+
+-- =====================================================
+--  COMBINAÇÃO DE BRAINROTS
+-- =====================================================
+GameConfig.COMBINE_CHANCE = {
+    Comum    = 1.0,
+    Incomum  = 0.9,
+    Raro     = 0.8,
+    Epico    = 0.7,
+    Lendario = 0.6,
+    Mitico   = 0.5,
+    God      = 0.4,
+    Secret   = 0.3,
+    OG       = 0,    -- não pode combinar OG
+}
+
+-- =====================================================
+--  INVENTÁRIO
+-- =====================================================
+GameConfig.INVENTORY_MAX_SLOTS = 50
+
+-- =====================================================
+--  ROTAÇÃO DE BIOMA
+-- =====================================================
+GameConfig.BIOME_ROTATION_INTERVAL = 300   -- segundos (5 min)
+
 return GameConfig

@@ -94,15 +94,19 @@ end
 local lastRB = 0
 
 UpdateAuraRE.OnClientEvent:Connect(function(payload)
-    local rb    = payload.rebirths or 0
-    local color = getColor(rb)
-    local title = getTitle(rb)
+    local rb     = payload.rebirths or 0
+    local prest  = payload.prestige  or 0
+    local color  = getColor(rb)
+    local title  = payload.equippedTitle or getTitle(rb)
 
     rankLabel.TextColor3 = color
     rankLabel.Text       = "✦ " .. title
-    infoLabel.Text       = player.DisplayName .. "  [RB " .. rb .. "]"
 
-    -- Flash no título ao ganhar rebirth
+    local rbStr  = "[RB " .. rb .. "]"
+    local prStr  = prest > 0 and (" ⭐" .. prest) or ""
+    infoLabel.Text = player.DisplayName .. "  " .. rbStr .. prStr
+
+    -- Flash no título ao ganhar rebirth ou prestígio
     if rb > lastRB then
         lastRB = rb
         TweenService:Create(rankLabel, TweenInfo.new(0.2), {
