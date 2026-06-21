@@ -215,4 +215,85 @@ for _, idx in ipairs(innerPositions) do
     path.CFrame = CFrame.new(midX, 0.15, midZ) * CFrame.Angles(0, -angle, 0)
 end
 
-print("[BrainrotRoubo] Mapa gerado com " .. #GameConfig.BASE_POSITIONS .. " bases!")
+-- =====================================================
+--  BIOMAS VISUAIS
+-- =====================================================
+-- Zona Épica: área interna (raio ~55) com chão teal brilhante
+local innerZone = makePart({
+    Name         = "InnerZoneFloor",
+    Shape        = Enum.PartType.Cylinder,
+    Size         = Vector3.new(0.35, 108, 108),
+    BrickColor   = BrickColor.new("Teal"),
+    Material     = Enum.Material.Neon,
+    CanCollide   = false,
+    CastShadow   = false,
+    Transparency = 0.82,
+})
+innerZone.CFrame = CFrame.new(0, -0.82, 0) * CFrame.Angles(0, 0, math.rad(90))
+
+-- Anel divisório entre zona interna e externa
+local divRing = makePart({
+    Name         = "DivisionRing",
+    Shape        = Enum.PartType.Cylinder,
+    Size         = Vector3.new(0.5, 116, 116),
+    BrickColor   = BrickColor.new("Cyan"),
+    Material     = Enum.Material.Neon,
+    CanCollide   = false,
+    CastShadow   = false,
+    Transparency = 0.55,
+})
+divRing.CFrame = CFrame.new(0, -0.55, 0) * CFrame.Angles(0, 0, math.rad(90))
+
+-- Legenda flutuante "ZONA ÉPICA" no centro
+local zoneMarker = Instance.new("Part")
+zoneMarker.Size        = Vector3.new(0.1, 0.1, 0.1)
+zoneMarker.Position    = Vector3.new(0, 10, 0)
+zoneMarker.Anchored    = true
+zoneMarker.CanCollide  = false
+zoneMarker.Transparency = 1
+zoneMarker.Parent      = workspace
+
+local zoneBB = Instance.new("BillboardGui")
+zoneBB.Size        = UDim2.new(0, 220, 0, 44)
+zoneBB.StudsOffset = Vector3.new(0, 0, 0)
+zoneBB.AlwaysOnTop = false
+zoneBB.Parent      = zoneMarker
+
+local zoneLabel = Instance.new("TextLabel")
+zoneLabel.Size                   = UDim2.new(1, 0, 1, 0)
+zoneLabel.BackgroundColor3       = Color3.fromRGB(0, 50, 50)
+zoneLabel.BackgroundTransparency = 0.35
+zoneLabel.BorderSizePixel        = 0
+zoneLabel.Text                   = "✦ ZONA ÉPICA — drops raros dobrados ✦"
+zoneLabel.TextColor3             = Color3.fromRGB(0, 230, 210)
+zoneLabel.TextScaled             = true
+zoneLabel.Font                   = Enum.Font.GothamBold
+zoneLabel.TextStrokeTransparency = 0
+zoneLabel.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
+zoneLabel.Parent                 = zoneBB
+
+local zoneCorner = Instance.new("UICorner")
+zoneCorner.CornerRadius = UDim.new(0, 8)
+zoneCorner.Parent       = zoneLabel
+
+-- 4 pilares de luz nos cantos da zona épica (bases internas)
+for _, idx in ipairs({9, 10, 11, 12}) do
+    local pos = GameConfig.BASE_POSITIONS[idx]
+    local pillar = makePart({
+        Name         = "EpicPillar_" .. idx,
+        Size         = Vector3.new(0.6, 12, 0.6),
+        Position     = Vector3.new(pos.X, 6, pos.Z),
+        BrickColor   = BrickColor.new("Teal"),
+        Material     = Enum.Material.Neon,
+        CanCollide   = false,
+        CastShadow   = false,
+        Transparency = 0.4,
+    })
+    local pillarLight = Instance.new("PointLight")
+    pillarLight.Color      = Color3.fromRGB(0, 200, 180)
+    pillarLight.Brightness = 3
+    pillarLight.Range      = 20
+    pillarLight.Parent     = pillar
+end
+
+print("[BrainrotRoubo] Mapa gerado com " .. #GameConfig.BASE_POSITIONS .. " bases e biomas!")

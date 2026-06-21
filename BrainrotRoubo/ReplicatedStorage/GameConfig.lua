@@ -140,4 +140,51 @@ GameConfig.MAX_BRAINROTS     = 12   -- igual ao nº de bases
 GameConfig.BRAINROT_LIFETIME = 50
 GameConfig.SPAWN_INTERVAL    = 2.5
 
+-- =====================================================
+--  UPGRADES (loja de aura)
+-- =====================================================
+GameConfig.UPGRADES = {
+    {
+        id="stealRange", name="Alcance", icon="🎯",
+        desc="Aumenta o alcance de roubo",
+        maxLevel=5,
+        costs  = {500,   2500,  10000, 50000,  250000},
+        values = {22,    26,    30,    36,     45},
+    },
+    {
+        id="walkSpeed", name="Velocidade", icon="⚡",
+        desc="Aumenta a velocidade de caminhada",
+        maxLevel=5,
+        costs  = {750,   3500,  15000, 75000,  400000},
+        values = {18,    20,    23,    27,     35},
+    },
+    {
+        id="auraBonus", name="Bônus de Aura", icon="✨",
+        desc="Multiplicador extra de aura ao roubar",
+        maxLevel=5,
+        costs  = {1000,  5000,  20000, 100000, 600000},
+        values = {1.2,   1.5,   2.0,   3.0,    5.0},
+    },
+}
+
+-- =====================================================
+--  MISSÕES DIÁRIAS (3 sorteadas por dia)
+-- =====================================================
+GameConfig.DAILY_MISSIONS = {
+    { id="steal10",  name="Ladrão Iniciante",  desc="Roube 10 brainrots",           type="steal",    target=10,  reward=1000  },
+    { id="steal50",  name="Ladrão Experiente", desc="Roube 50 brainrots",           type="steal",    target=50,  reward=8000  },
+    { id="steal200", name="Mestre do Roubo",   desc="Roube 200 brainrots",          type="steal",    target=200, reward=40000 },
+    { id="getEpico", name="Caçador Épico",     desc="Roube 1 Épico ou mais raro",   type="rarityMin",rarityMin=4,target=1,    reward=5000  },
+    { id="getLend",  name="Lenda Viva",        desc="Roube 1 Lendário ou mais raro",type="rarityMin",rarityMin=5,target=1,    reward=20000 },
+    { id="getLua",   name="Lua Cheia",         desc="Roube 1 Lua de Sangue",        type="mutation", mutation="Lua de Sangue",target=1,reward=50000 },
+    { id="rebirth1", name="Renascimento",      desc="Faça 1 rebirth",               type="rebirth",  target=1,   reward=15000 },
+}
+
+-- Rank de raridade (para missões e bioma)
+GameConfig.RARITY_ORDER = {"Comum","Incomum","Raro","Epico","Lendario","Mitico","God","Secret","OG"}
+GameConfig.RARITY_RANK  = {}
+for i, r in ipairs(GameConfig.RARITY_ORDER) do
+    GameConfig.RARITY_RANK[r] = i
+end
+
 return GameConfig
