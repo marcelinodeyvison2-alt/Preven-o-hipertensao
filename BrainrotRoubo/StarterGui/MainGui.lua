@@ -2509,9 +2509,30 @@ end
 --  INPUT
 -- =====================================================
 local function doSteal()
-    if nearestBrainrot and nearestBrainrot.Parent and stealCooldownTimer <= 0 then
+    if stealCooldownTimer > 0 then return end
+
+    -- Se o brainrot mais próximo sumiu, tenta re-detectar em tempo real
+    if not nearestBrainrot or not nearestBrainrot.Parent then
+        local char = player.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local folder = workspace:FindFirstChild("Brainrots")
+            if folder then
+                local stealRange = GameConfig.STEAL_RANGE
+                local best, bestDist = nil, stealRange
+                for _, part in ipairs(folder:GetChildren()) do
+                    if part:IsA("BasePart") and part.Parent then
+                        local d = (root.Position - part.Position).Magnitude
+                        if d < bestDist then bestDist = d; best = part end
+                    end
+                end
+                nearestBrainrot = best
+            end
+        end
+    end
+
+    if nearestBrainrot and nearestBrainrot.Parent then
         stealCooldownTimer = STEAL_COOLDOWN_DURATION
-        -- Capture info before FireServer (part may be destroyed server-side)
         local stealPos    = nearestBrainrot.Position
         local stealMeta   = nearestBrainrot:FindFirstChild("Meta")
         local stealRarity = stealMeta and stealMeta:FindFirstChild("Rarity") and stealMeta.Rarity.Value or "Comum"

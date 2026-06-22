@@ -919,16 +919,36 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     if StealCooldown[uid] and now - StealCooldown[uid] < 0.5 then return end
     StealCooldown[uid] = now
 
-    local data = PlayerData[uid]; if not data then return end
-    if not brainrotPart or not brainrotPart.Parent or brainrotPart.Parent~=BrainrotsFolder then return end
+    local data = PlayerData[uid]
+    if not data then
+        NotifyRE:FireClient(player, "Dados ainda carregando, tente novamente!", Color3.fromRGB(255,180,0))
+        return
+    end
 
-    local char = player.Character; if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart"); if not root then return end
+    if not brainrotPart or not brainrotPart.Parent then
+        -- Brainrot já foi roubado ou desapareceu da esteira
+        return
+    end
+    if brainrotPart.Parent ~= BrainrotsFolder then
+        NotifyRE:FireClient(player, "Brainrot inválido!", Color3.fromRGB(255,80,80))
+        return
+    end
+
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
     if (root.Position-brainrotPart.Position).Magnitude > getStealRange(data)+4 then
         NotifyRE:FireClient(player,"Muito longe!",Color3.fromRGB(255,80,80)); return
     end
 
-    local meta=brainrotPart:FindFirstChild("Meta"); if not meta then return end
+    local meta=brainrotPart:FindFirstChild("Meta")
+    if not meta then
+        -- Garante que o brainrot inválido é removido
+        ConveyorBrainrots[brainrotPart] = nil
+        brainrotPart:Destroy()
+        return
+    end
     local bName   = meta:FindFirstChild("BrainrotName") and meta.BrainrotName.Value or "?"
     local rarity  = meta:FindFirstChild("Rarity")       and meta.Rarity.Value       or "Comum"
     local baseAura= meta:FindFirstChild("AuraValue")    and meta.AuraValue.Value    or 10
