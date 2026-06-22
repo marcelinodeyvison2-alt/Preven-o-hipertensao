@@ -12,6 +12,7 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("GameConfig"))
 local DataStore    = DataStoreService:GetDataStore("BrainrotAuraV5")
 local LB_Rebirths  = DataStoreService:GetOrderedDataStore("LB_Rebirths_v1")
 local LB_Stolen    = DataStoreService:GetOrderedDataStore("LB_Stolen_v1")
+local LB_SeasonAura= DataStoreService:GetOrderedDataStore("LB_Season_"..GameConfig.SEASON_NUMBER)
 
 -- =====================================================
 --  REMOTES
@@ -63,6 +64,12 @@ local TeamUpdateRE      = makeRE("TeamUpdate")
 local WeeklyMissionRE   = makeRE("WeeklyMissionUpdate")
 local ClaimWeeklyEvent  = makeRE("ClaimWeeklyMission")
 local LoginStreakRE      = makeRE("LoginStreak")
+local WorldLBRE         = makeRE("WorldLeaderboardUpdate")
+local RareFlashRE       = makeRE("RareSpawnFlash")
+local LuckySpinRE       = makeRE("LuckySpinAvailable")
+local SpinResultRE      = makeRE("SpinResult")
+local ClaimSpinEvent    = makeRE("ClaimSpin")
+local IdleAuraRE        = makeRE("IdleAuraGain")
 
 -- =====================================================
 --  MUNDO
@@ -78,6 +85,8 @@ local PendingTrades     = {}
 local Teams             = {}   -- teamId -> {userId1, userId2}
 local PlayerTeam        = {}   -- userId -> teamId
 local teamCounter       = 0
+local PlayerSpinCount   = {}   -- userId -> steals since last spin
+local PlayerSpinBuff    = {}   -- userId -> {mult, expireTime}
 
 -- =====================================================
 --  DADOS DOS JOGADORES
@@ -107,6 +116,7 @@ local function defaultData()
         loginStreak   = 0,
         lastLoginDay  = 0,
         weeklyMissionData = nil,
+        lastSaveTime  = 0,
     }
 end
 
@@ -322,15 +332,56 @@ end
 -- =====================================================
 --  LEADERBOARD
 -- =====================================================
+local function updateWorldLeaderboard()
+    local function doBoard(boardName)
+        local board = workspace:FindFirstChild(boardName)
+        if not board then return end
+        local sg = board:FindFirstChildWhichIsA("SurfaceGui")
+        if not sg then return end
+        local bg = sg:FindFirstChild("LBBg")
+        if not bg then return end
+        local entries = {}
+        for uid, d in pairs(PlayerData) do
+            local p = Players:GetPlayerByUserId(uid)
+            table.insert(entries, {name=(p and p.DisplayName or "?"), aura=d.aura or 0})
+        end
+        table.sort(entries, function(a,b) return a.aura > b.aura end)
+        for k = 1, 5 do
+            local row = bg:FindFirstChild("LBRow_"..k)
+            if row then
+                local entry = entries[k]
+                local n = row:FindFirstChild("PlayerName")
+                local a = row:FindFirstChild("AuraAmt")
+                if n then n.Text = entry and entry.name or "---" end
+                if a then a.Text = entry and formatBig(entry.aura) or "0" end
+            end
+        end
+    end
+    doBoard("WorldLeaderboard")
+    doBoard("WorldLeaderboardEast")
+end
+
+task.spawn(function()
+    while true do
+        task.wait(8)
+        pcall(updateWorldLeaderboard)
+    end
+end)
+
 local function updateLeaderboard(player, data)
     pcall(function()
         LB_Rebirths:SetAsync("P_"..player.UserId, data.rebirths)
         LB_Stolen:SetAsync("P_"..player.UserId,   data.totalStolen)
+        LB_SeasonAura:SetAsync("P_"..player.UserId, math.floor(data.aura))
     end)
+    pcall(updateWorldLeaderboard)
 end
 
 local function getTopLeaderboard(dsName, count)
-    local ds = dsName=="rebirths" and LB_Rebirths or LB_Stolen
+    local ds
+    if dsName=="rebirths" then ds = LB_Rebirths
+    elseif dsName=="season" then ds = LB_SeasonAura
+    else ds = LB_Stolen end
     local ok, pages = pcall(function()
         return ds:GetSortedAsync(false, count)
     end)
@@ -350,7 +401,9 @@ local function getTopLeaderboard(dsName, count)
 end
 
 LeaderboardRF.OnServerInvoke = function(player, lbType)
-    return getTopLeaderboard(lbType, 10)
+    local main  = getTopLeaderboard(lbType, 10)
+    local season= getTopLeaderboard("season", 10)
+    return { data=main, season=season }
 end
 
 -- =====================================================
@@ -439,6 +492,27 @@ local function loadData(player)
             data.unlockedTitles[streakReward.id] = true
         end
     end
+    -- Aura passiva (offline income)
+    local now = os.time()
+    local lastSave = data.lastSaveTime or 0
+    if lastSave > 0 then
+        local offlineSecs  = math.max(0, now - lastSave)
+        local offlineHours = math.min(offlineSecs / 3600, GameConfig.IDLE_AURA_MAX_HOURS or 8)
+        if offlineHours >= 0.05 then
+            local auraPerHour = (GameConfig.IDLE_AURA_BASE or 100) + (data.rebirths or 0) * (GameConfig.IDLE_AURA_PER_REBIRTH or 50)
+            local idleGain = math.floor(auraPerHour * offlineHours)
+            if idleGain > 0 then
+                local cap = getAuraCap(data.rebirths, data.prestige)
+                data.aura = math.min(data.aura + idleGain, cap)
+                task.delay(3, function()
+                    local p = Players:GetPlayerByUserId(player.UserId)
+                    if p then IdleAuraRE:FireClient(p, idleGain, math.floor(offlineHours * 60)) end
+                end)
+            end
+        end
+    end
+    data.lastSaveTime = now
+
     -- Verifica VIP
     data.isVIP = checkVIP(player)
     PlayerData[player.UserId] = data
@@ -466,6 +540,7 @@ end
 local function saveData(player)
     local data = PlayerData[player.UserId]
     if not data then return end
+    if data then data.lastSaveTime = os.time() end
     pcall(function() DataStore:SetAsync("P_"..player.UserId, data) end)
 end
 
@@ -715,6 +790,7 @@ local function spawnBrainrot()
         GlobalAnnounceRE:FireAllClients(
             string.format("🌑 LUA DE SANGUE na esteira!  [%s]  ×20 Aura!", bt.rarity),
             Color3.fromRGB(220, 0, 0))
+        RareFlashRE:FireAllClients(bt.rarity, Color3.fromRGB(220, 0, 0), 9)
     else
         local rank = GameConfig.RARITY_RANK[bt.rarity] or 0
         if rank >= RARE_RANK then
@@ -722,6 +798,9 @@ local function spawnBrainrot()
             GlobalAnnounceRE:FireAllClients(
                 string.format("%s %s [%s] na esteira!", dramatic and"⚡ ÉPICO EXTREMO!"or"✦", bt.name, bt.rarity),
                 rarColor, dramatic)
+            if rank >= DRAMA_RANK then
+                RareFlashRE:FireAllClients(bt.rarity, rarColor, rank)
+            end
         end
     end
 end
@@ -876,7 +955,13 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     local eventBonus  = GameConfig.CURRENT_EVENT and GameConfig.CURRENT_EVENT.auraBonus or 1
     local vipBonus    = data.isVIP and GameConfig.VIP_AURA_BONUS or 1
 
-    local totalGain = math.floor(baseAura * mutMult * rebirthMult * bonusMult * petMult * prestige * eventBonus * vipBonus)
+    local spinBuff = PlayerSpinBuff[uid]
+    local spinMult = 1
+    if spinBuff then
+        if os.time() < spinBuff.expireTime then spinMult = spinBuff.mult
+        else PlayerSpinBuff[uid] = nil end
+    end
+    local totalGain = math.floor(baseAura * mutMult * rebirthMult * bonusMult * petMult * prestige * eventBonus * vipBonus * spinMult)
     local cap       = getAuraCap(data.rebirths, data.prestige)
     local newAura   = math.min(data.aura + totalGain, cap)
     local actual    = newAura - data.aura
@@ -885,6 +970,15 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     end
 
     data.aura = newAura; data.totalStolen = (data.totalStolen or 0)+1
+
+    -- Lucky Spin tracking
+    local sc = (PlayerSpinCount[uid] or 0) + 1
+    if sc >= (GameConfig.LUCKY_SPIN_INTERVAL or 20) then
+        PlayerSpinCount[uid] = 0
+        LuckySpinRE:FireClient(player)
+    else
+        PlayerSpinCount[uid] = sc
+    end
 
     -- Index
     local idx=data.index
@@ -1311,6 +1405,36 @@ ClaimWeeklyEvent.OnServerEvent:Connect(function(player, missionId)
     UpdateAuraRE:FireClient(player,buildUpdatePayload(data))
     WeeklyMissionRE:FireClient(player,wmd)
     updateLeaderstats(player)
+end)
+
+-- =====================================================
+--  LUCKY SPIN CLAIM
+-- =====================================================
+ClaimSpinEvent.OnServerEvent:Connect(function(player)
+    local uid  = player.UserId
+    local data = PlayerData[uid]; if not data then return end
+    local rewards = GameConfig.LUCKY_SPIN_REWARDS
+    local totalW = 0
+    for _, r in ipairs(rewards) do totalW = totalW + r.weight end
+    local roll = math.random(1, totalW)
+    local chosen = rewards[#rewards]
+    local acc = 0
+    for _, r in ipairs(rewards) do
+        acc = acc + r.weight
+        if roll <= acc then chosen = r; break end
+    end
+    if chosen.type == "aura" then
+        local cap = getAuraCap(data.rebirths, data.prestige)
+        data.aura = math.min(data.aura + chosen.amount, cap)
+        UpdateAuraRE:FireClient(player, buildUpdatePayload(data))
+    elseif chosen.type == "mult" then
+        PlayerSpinBuff[uid] = { mult=chosen.amount, expireTime=os.time()+(chosen.duration or 300) }
+    elseif chosen.type == "title" then
+        if not data.unlockedTitles then data.unlockedTitles = {} end
+        data.unlockedTitles[chosen.id] = true
+    end
+    SpinResultRE:FireClient(player, chosen)
+    saveData(player)
 end)
 
 -- =====================================================

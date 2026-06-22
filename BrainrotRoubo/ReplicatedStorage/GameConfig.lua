@@ -274,6 +274,7 @@ GameConfig.TITLES = {
     { id="original",   name="O ORIGINAL",   unlock="got_og"       },
     { id="lenda",      name="Lenda",        unlock="rebirth_max"  },
     { id="prestigiado",name="Prestigiado",  unlock="prestige_1"   },
+    { id="sortudo",    name="Sortudo",      unlock="spin_win"     },
 }
 
 -- =====================================================
@@ -340,6 +341,33 @@ GameConfig.INVENTORY_MAX_SLOTS = 50
 --  ROTAÇÃO DE BIOMA
 -- =====================================================
 GameConfig.BIOME_ROTATION_INTERVAL = 300   -- segundos (5 min)
+
+-- =====================================================
+--  LUCKY SPIN (roleta a cada N roubos)
+-- =====================================================
+GameConfig.LUCKY_SPIN_INTERVAL = 20   -- a cada 20 roubos
+GameConfig.LUCKY_SPIN_REWARDS = {
+    { type="aura",  amount=5000,    name="5.000 Aura",       weight=40, color=Color3.fromRGB(200,200,200) },
+    { type="aura",  amount=25000,   name="25.000 Aura",      weight=25, color=Color3.fromRGB(255,200,0)   },
+    { type="aura",  amount=100000,  name="100.000 Aura",     weight=15, color=Color3.fromRGB(80,200,255)  },
+    { type="mult",  amount=2, duration=300, name="×2 Aura (5min)", weight=10, color=Color3.fromRGB(80,255,120) },
+    { type="mult",  amount=5, duration=180, name="×5 Aura (3min)", weight=5,  color=Color3.fromRGB(160,80,255) },
+    { type="aura",  amount=500000,  name="500k Aura",        weight=4,  color=Color3.fromRGB(255,150,50)  },
+    { type="title", id="sortudo",   name="Título: Sortudo",  weight=1,  color=Color3.fromRGB(255,215,0)   },
+}
+
+-- =====================================================
+--  TEMPORADA DE RANKING
+-- =====================================================
+GameConfig.SEASON_NUMBER        = 1
+GameConfig.SEASON_DURATION_DAYS = 30
+
+-- =====================================================
+--  AURA PASSIVA (gerada offline)
+-- =====================================================
+GameConfig.IDLE_AURA_BASE        = 100   -- aura/hora base
+GameConfig.IDLE_AURA_PER_REBIRTH = 50    -- extra por rebirth
+GameConfig.IDLE_AURA_MAX_HOURS   = 8     -- máximo acumulável
 
 -- =====================================================
 --  NOVOS SISTEMAS (v3)
