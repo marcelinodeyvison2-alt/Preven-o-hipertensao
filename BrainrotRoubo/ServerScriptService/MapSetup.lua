@@ -926,4 +926,303 @@ end
 makeWorldLeaderboard("WorldLeaderboard",     minX-13.5, Enum.NormalId.Right)
 makeWorldLeaderboard("WorldLeaderboardEast",  maxX+13.5, Enum.NormalId.Left)
 
-print("[BrainrotRoubo] Mapa COMPLETO gerado: esteira central com " .. #GameConfig.CONVEYOR_WAYPOINTS .. " waypoints, NPC Zé das Upgrades, pets e decorações!")
+-- =====================================================
+--  PÓDIO 3D (Ouro / Prata / Bronze) — lado leste
+-- =====================================================
+local podiumData = {
+    { rank=1, x=maxX+28, h=3.5, color=Color3.fromRGB(255,215,0),   label="🥇 1°" },
+    { rank=2, x=maxX+24, h=2.5, color=Color3.fromRGB(192,192,192), label="🥈 2°" },
+    { rank=3, x=maxX+32, h=1.8, color=Color3.fromRGB(205,127,50),  label="🥉 3°" },
+}
+for _, pd in ipairs(podiumData) do
+    -- Base do pódio
+    local base = makePart({ Name="Podium_"..pd.rank,
+        Size=Vector3.new(4.5, pd.h, 4.5),
+        Position=Vector3.new(pd.x, pd.h/2, 0),
+        BrickColor=BrickColor.new("Dark stone grey"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=true })
+    -- Topo colorido
+    local top = makePart({ Name="PodiumTop_"..pd.rank,
+        Size=Vector3.new(4.7, 0.4, 4.7),
+        Position=Vector3.new(pd.x, pd.h+0.2, 0),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false })
+    top.Color = pd.color
+    local tl = Instance.new("PointLight"); tl.Color=pd.color; tl.Brightness=3; tl.Range=14; tl.Parent=top
+    -- Placa com ranking
+    local sg = Instance.new("SurfaceGui"); sg.Face=Enum.NormalId.Front; sg.Parent=base
+    local lbl = Instance.new("TextLabel"); lbl.Size=UDim2.new(1,0,1,0)
+    lbl.BackgroundTransparency=1; lbl.Text=pd.label
+    lbl.TextColor3=pd.color; lbl.TextScaled=true; lbl.Font=Enum.Font.GothamBold
+    lbl.TextStrokeTransparency=0; lbl.Parent=sg
+    -- Troféu no topo
+    local trophy = makePart({ Name="PodiumTrophy_"..pd.rank,
+        Shape=Enum.PartType.Ball, Size=Vector3.new(1.5,1.5,1.5),
+        Position=Vector3.new(pd.x, pd.h+1.15, 0),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.15 })
+    trophy.Color = pd.color
+end
+-- Painel acima dos pódios
+local podSign = makePart({ Name="PodiumSign", Size=Vector3.new(16,3,0.5),
+    Position=Vector3.new(maxX+28, 7, 0),
+    BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+local podSg = Instance.new("SurfaceGui"); podSg.Face=Enum.NormalId.Front; podSg.Parent=podSign
+local podLbl = Instance.new("TextLabel"); podLbl.Size=UDim2.new(1,0,1,0)
+podLbl.BackgroundColor3=Color3.fromRGB(4,4,20); podLbl.BorderSizePixel=0
+podLbl.Text="🏆  HALL DA FAMA  🏆"; podLbl.TextColor3=Color3.fromRGB(255,215,0)
+podLbl.TextScaled=true; podLbl.Font=Enum.Font.GothamBold; podLbl.Parent=podSg
+local podLight=Instance.new("PointLight"); podLight.Color=Color3.fromRGB(255,215,0); podLight.Brightness=2; podLight.Range=16; podLight.Parent=podSign
+
+-- =====================================================
+--  ARCO DE ENTRADA (Norte e Sul da arena)
+-- =====================================================
+for _, arc in ipairs({
+    { z=minZ-14.5, label="⚡  BRAINROT ROUBO  ⚡", flip=false },
+    { z=maxZ+14.5, label="🏆  BOA SORTE!  🏆",     flip=true  },
+}) do
+    -- Dois pilares
+    for _, sx in ipairs({-9.5, 9.5}) do
+        makePart({ Name="ArchPillar", Size=Vector3.new(1.8, 14, 1.8),
+            Position=Vector3.new(sx, 7, arc.z),
+            BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic })
+        local capBall = makePart({ Name="ArchPillarCap", Shape=Enum.PartType.Ball,
+            Size=Vector3.new(2.4,2.4,2.4), Position=Vector3.new(sx, 15, arc.z),
+            BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+            CanCollide=false, CastShadow=false, Transparency=0.1 })
+        capBall.Color = Color3.fromRGB(255,215,0)
+        local cl=Instance.new("PointLight"); cl.Color=Color3.fromRGB(255,215,0); cl.Brightness=5; cl.Range=20; cl.Parent=capBall
+    end
+    -- Viga horizontal
+    local beam = makePart({ Name="ArchBeam", Size=Vector3.new(21, 1.4, 1.8),
+        Position=Vector3.new(0, 14, arc.z),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    -- Painel do arco com texto
+    local arcPanel = makePart({ Name="ArchPanel", Size=Vector3.new(20, 3, 0.5),
+        Position=Vector3.new(0, 16.5, arc.z),
+        BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    local arcSg = Instance.new("SurfaceGui"); arcSg.Face=arc.flip and Enum.NormalId.Back or Enum.NormalId.Front; arcSg.Parent=arcPanel
+    local arcLbl = Instance.new("TextLabel"); arcLbl.Size=UDim2.new(1,0,1,0)
+    arcLbl.BackgroundColor3=Color3.fromRGB(6,4,20); arcLbl.BorderSizePixel=0
+    arcLbl.Text=arc.label; arcLbl.TextColor3=Color3.fromRGB(255,220,80)
+    arcLbl.TextScaled=true; arcLbl.Font=Enum.Font.GothamBold
+    arcLbl.TextStrokeTransparency=0.3; arcLbl.Parent=arcSg
+    -- Neon no topo do painel
+    local arcNeon = makePart({ Name="ArchNeon", Size=Vector3.new(20.5, 0.3, 0.4),
+        Position=Vector3.new(0, 18.1, arc.z),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.15 })
+    arcNeon.Color = Color3.fromRGB(255,215,0)
+end
+
+-- =====================================================
+--  VIGAS INDUSTRIAIS SUSPENSAS + LÂMPADAS PENDURADAS
+-- =====================================================
+-- Treliça superior leste-oeste (2 vigas cruzando o mapa)
+for _, girderZ in ipairs({ -8, 8 }) do
+    makePart({ Name="Girder_H", Size=Vector3.new(lenX + 30, 1.2, 1.2),
+        Position=Vector3.new(0, 26, girderZ),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.DiamondPlate,
+        CanCollide=false, CastShadow=false })
+    -- 5 lâmpadas penduradas em cada viga
+    for lx = -36, 36, 18 do
+        makePart({ Name="LampPole", Size=Vector3.new(0.3, 5, 0.3),
+            Position=Vector3.new(lx, 23.5, girderZ),
+            BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic,
+            CanCollide=false, CastShadow=false })
+        local bulb = makePart({ Name="HangingBulb", Shape=Enum.PartType.Ball,
+            Size=Vector3.new(1.2,1.2,1.2), Position=Vector3.new(lx, 21, girderZ),
+            BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+            CanCollide=false, CastShadow=false, Transparency=0.05 })
+        bulb.Color = Color3.fromRGB(255,245,200)
+        local bl=Instance.new("PointLight"); bl.Color=Color3.fromRGB(255,240,180); bl.Brightness=4; bl.Range=28; bl.Parent=bulb
+    end
+end
+-- Viga norte-sul central
+makePart({ Name="Girder_V", Size=Vector3.new(1.2, 1.2, lenZ + 30),
+    Position=Vector3.new(0, 26, 0),
+    BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.DiamondPlate,
+    CanCollide=false, CastShadow=false })
+-- Suportes verticais da treliça (4 pilares)
+for _, sp in ipairs({ Vector3.new(-36,0,-8), Vector3.new(36,0,-8), Vector3.new(-36,0,8), Vector3.new(36,0,8) }) do
+    makePart({ Name="GirderSupport", Size=Vector3.new(0.8, 26, 0.8),
+        Position=Vector3.new(sp.X, 13, sp.Z),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic,
+        CanCollide=false, CastShadow=false })
+end
+
+-- =====================================================
+--  ZONA VIP / PRESTÍGIO (canto NW fora da esteira)
+-- =====================================================
+local vipX = minX - 26
+local vipZ = maxZ + 26
+-- Plataforma dourada elevada
+local vipFloor = makePart({ Name="VIPZone",
+    Size=Vector3.new(18, 0.6, 18), Position=Vector3.new(vipX, 0.3, vipZ),
+    BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic })
+vipFloor.Color = Color3.fromRGB(255,215,0)
+-- Borda neon da zona VIP
+for _, vb in ipairs({
+    {dx=0,    dz=-9.5, sx=18.5, sz=0.3},
+    {dx=0,    dz= 9.5, sx=18.5, sz=0.3},
+    {dx=-9.5, dz=0,    sx=0.3,  sz=18.5},
+    {dx= 9.5, dz=0,    sx=0.3,  sz=18.5},
+}) do
+    local vbn = makePart({ Name="VIPBorder", Size=Vector3.new(vb.sx,0.3,vb.sz),
+        Position=Vector3.new(vipX+vb.dx, 0.75, vipZ+vb.dz),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.1 })
+    vbn.Color = Color3.fromRGB(255,215,0)
+    local vbl=Instance.new("PointLight"); vbl.Color=Color3.fromRGB(255,215,0); vbl.Brightness=2; vbl.Range=12; vbl.Parent=vbn
+end
+-- Placa VIP
+local vipSign = makePart({ Name="VIPSign", Size=Vector3.new(12, 3, 0.5),
+    Position=Vector3.new(vipX, 5, vipZ - 9.5),
+    BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+local vipSg = Instance.new("SurfaceGui"); vipSg.Face=Enum.NormalId.Front; vipSg.Parent=vipSign
+local vipLbl = Instance.new("TextLabel"); vipLbl.Size=UDim2.new(1,0,0.6,0)
+vipLbl.BackgroundColor3=Color3.fromRGB(8,6,2); vipLbl.BorderSizePixel=0
+vipLbl.Text="👑  ZONA VIP  👑"; vipLbl.TextColor3=Color3.fromRGB(255,215,0)
+vipLbl.TextScaled=true; vipLbl.Font=Enum.Font.GothamBold; vipLbl.Parent=vipSg
+local vipSub = Instance.new("TextLabel"); vipSub.Size=UDim2.new(1,0,0.35,0)
+vipSub.Position=UDim2.new(0,0,0.63,0); vipSub.BackgroundTransparency=1
+vipSub.Text="Prestígio 1+ para acessar"; vipSub.TextColor3=Color3.fromRGB(200,180,100)
+vipSub.TextScaled=true; vipSub.Font=Enum.Font.Gotham; vipSub.Parent=vipSg
+-- 4 pilares VIP com esferas douradas
+for _, vc in ipairs({ {-8,-8},{8,-8},{-8,8},{8,8} }) do
+    makePart({ Name="VIPPillar", Size=Vector3.new(1,10,1),
+        Position=Vector3.new(vipX+vc[1], 5, vipZ+vc[2]),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    local vcap = makePart({ Name="VIPPillarCap", Shape=Enum.PartType.Ball, Size=Vector3.new(1.8,1.8,1.8),
+        Position=Vector3.new(vipX+vc[1], 10.9, vipZ+vc[2]),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.1 })
+    vcap.Color = Color3.fromRGB(255,215,0)
+    local vcl=Instance.new("PointLight"); vcl.Color=Color3.fromRGB(255,215,0); vcl.Brightness=4; vcl.Range=16; vcl.Parent=vcap
+end
+
+-- =====================================================
+--  CAIXAS / CONTAINERS INDUSTRIAIS DECORATIVOS
+-- =====================================================
+local boxData = {
+    { x= 52, z= 30, w=3.5, h=2.5, d=3,   clr=BrickColor.new("Dark stone grey"), mat=Enum.Material.DiamondPlate },
+    { x= 52, z= 35, w=3.5, h=1.5, d=3,   clr=BrickColor.new("Sand red"),        mat=Enum.Material.DiamondPlate },
+    { x= 55, z= 32, w=2.5, h=4,   d=2.5, clr=BrickColor.new("Dark stone grey"), mat=Enum.Material.DiamondPlate },
+    { x=-52, z= 30, w=3.5, h=2.5, d=3,   clr=BrickColor.new("Dark stone grey"), mat=Enum.Material.DiamondPlate },
+    { x=-52, z=-30, w=3,   h=3,   d=3,   clr=BrickColor.new("Sand red"),        mat=Enum.Material.DiamondPlate },
+    { x= 52, z=-30, w=4,   h=2,   d=3,   clr=BrickColor.new("Dark stone grey"), mat=Enum.Material.Metal        },
+    { x= 48, z=-33, w=2,   h=4.5, d=2,   clr=BrickColor.new("Sand red"),        mat=Enum.Material.DiamondPlate },
+    { x=-55, z=-32, w=3.5, h=3.5, d=3.5, clr=BrickColor.new("Dark stone grey"), mat=Enum.Material.Metal        },
+}
+for i, bd in ipairs(boxData) do
+    makePart({ Name="IndustrialBox_"..i, Size=Vector3.new(bd.w, bd.h, bd.d),
+        Position=Vector3.new(bd.x, bd.h/2, bd.z),
+        BrickColor=bd.clr, Material=bd.mat, CanCollide=true })
+end
+-- Barris de metal nas entradas
+for _, bp in ipairs({ {x=-18,z=minZ-14.5},{x=18,z=minZ-14.5},{x=-18,z=maxZ+14.5},{x=18,z=maxZ+14.5} }) do
+    local bar = makePart({ Name="Barrel", Shape=Enum.PartType.Cylinder,
+        Size=Vector3.new(2.8,1.4,1.4), Position=Vector3.new(bp.x, 0.7, bp.z),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.DiamondPlate, CanCollide=true })
+    bar.CFrame = CFrame.new(bp.x, 0.7, bp.z) * CFrame.Angles(0, 0, math.rad(90))
+    local bStripe = makePart({ Name="BarrelStripe", Size=Vector3.new(2.9,0.25,1.45),
+        Position=Vector3.new(bp.x, 0.9, bp.z),
+        BrickColor=BrickColor.new("Bright yellow"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.2 })
+    bStripe.CFrame = CFrame.new(bp.x, 0.9, bp.z) * CFrame.Angles(0, 0, math.rad(90))
+end
+
+-- =====================================================
+--  PAREDES DE FUNDO (evita "vazio" no horizonte)
+-- =====================================================
+local wallHeight = 35
+local wallDist   = 143
+for _, wd in ipairs({
+    { px=0,        pz=-wallDist, sx=300, sz=2,  rot=0          },
+    { px=0,        pz= wallDist, sx=300, sz=2,  rot=0          },
+    { px=-wallDist, pz=0,        sx=2,   sz=300, rot=0         },
+    { px= wallDist, pz=0,        sx=2,   sz=300, rot=0         },
+}) do
+    makePart({ Name="BackWall", Size=Vector3.new(wd.sx, wallHeight, wd.sz),
+        Position=Vector3.new(wd.px, wallHeight/2, wd.pz),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic,
+        Transparency=0, CanCollide=true })
+end
+-- Faixas neon nas paredes de fundo (cada parede)
+for _, wn in ipairs({
+    { px=0,         pz=-(wallDist-1), sx=300, sz=0.4 },
+    { px=0,         pz= (wallDist-1), sx=300, sz=0.4 },
+    { px=-(wallDist-1), pz=0,         sx=0.4, sz=300 },
+    { px= (wallDist-1), pz=0,         sx=0.4, sz=300 },
+}) do
+    local wnn = makePart({ Name="WallNeon", Size=Vector3.new(wn.sx, 0.4, wn.sz),
+        Position=Vector3.new(wn.px, 3, wn.pz),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.3 })
+    wnn.Color = Color3.fromRGB(80, 160, 255)
+end
+
+-- =====================================================
+--  MARCAÇÕES NO CHÃO DA ARENA (faixas de zona)
+-- =====================================================
+-- Linhas centrais cruzadas no piso
+makePart({ Name="FloorLine_H", Size=Vector3.new(lenX+28, 0.06, 0.5),
+    Position=Vector3.new(0, 0.0, 0),
+    BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+    CanCollide=false, CastShadow=false, Transparency=0.4 }).Color = Color3.fromRGB(255,215,0)
+makePart({ Name="FloorLine_V", Size=Vector3.new(0.5, 0.06, lenZ+24),
+    Position=Vector3.new(0, 0.0, 0),
+    BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+    CanCollide=false, CastShadow=false, Transparency=0.4 }).Color = Color3.fromRGB(255,215,0)
+-- Círculo central (aproximado com 8 segmentos)
+for seg = 0, 7 do
+    local ang  = math.rad(seg * 45)
+    local r    = 10
+    local clp  = makePart({ Name="FloorCircle_"..seg, Size=Vector3.new(0.4, 0.06, 8),
+        Position=Vector3.new(math.cos(ang)*r, 0.0, math.sin(ang)*r),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.45 })
+    clp.CFrame = CFrame.new(math.cos(ang)*r, 0.0, math.sin(ang)*r) * CFrame.Angles(0, ang+math.rad(90), 0)
+    clp.Color  = Color3.fromRGB(80, 200, 255)
+end
+
+-- =====================================================
+--  PAINÉIS INFORMATIVOS (dicas espalhadas no mapa)
+-- =====================================================
+local infoBoards = {
+    { x= 0,   z=maxZ+26,  face=Enum.NormalId.Front, title="💡 DICA",        body="Raros+ aparecem\npor 50s na esteira!" },
+    { x= 0,   z=minZ-26,  face=Enum.NormalId.Back,  title="⚡ REBIRTH",     body="Renasça para ganhar\nmais AURA por roubo!" },
+    { x=maxX+26, z=0,     face=Enum.NormalId.Left,  title="🎲 LUCKY SPIN",  body="A cada 35 roubos\nvocê ganha uma roleta!" },
+    { x=minX-26, z=0,     face=Enum.NormalId.Right, title="🌙 OFFLINE",     body="Sua aura cresce\nmesmo fora do jogo!" },
+}
+for i, ib in ipairs(infoBoards) do
+    local ibPost1 = makePart({ Name="InfoPost1_"..i, Size=Vector3.new(0.8,8,0.8),
+        Position=Vector3.new(ib.x-4, 4, ib.z),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    local ibPost2 = makePart({ Name="InfoPost2_"..i, Size=Vector3.new(0.8,8,0.8),
+        Position=Vector3.new(ib.x+4, 4, ib.z),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    local ibPanel = makePart({ Name="InfoPanel_"..i, Size=Vector3.new(9, 5, 0.4),
+        Position=Vector3.new(ib.x, 6, ib.z),
+        BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    local ibSg = Instance.new("SurfaceGui"); ibSg.Face=ib.face; ibSg.Parent=ibPanel
+    local ibBg = Instance.new("Frame"); ibBg.Size=UDim2.new(1,0,1,0)
+    ibBg.BackgroundColor3=Color3.fromRGB(4,4,20); ibBg.BorderSizePixel=0; ibBg.Parent=ibSg
+    local ibTitle = Instance.new("TextLabel"); ibTitle.Size=UDim2.new(1,0,0.38,0)
+    ibTitle.BackgroundColor3=Color3.fromRGB(20,10,50); ibTitle.BorderSizePixel=0
+    ibTitle.Text=ib.title; ibTitle.TextColor3=Color3.fromRGB(255,215,0)
+    ibTitle.TextScaled=true; ibTitle.Font=Enum.Font.GothamBold; ibTitle.Parent=ibBg
+    local ibBody = Instance.new("TextLabel"); ibBody.Size=UDim2.new(1,0,0.55,0)
+    ibBody.Position=UDim2.new(0,0,0.40,0); ibBody.BackgroundTransparency=1
+    ibBody.Text=ib.body; ibBody.TextColor3=Color3.fromRGB(200,200,200)
+    ibBody.TextScaled=true; ibBody.Font=Enum.Font.Gotham
+    ibBody.TextWrapped=true; ibBody.Parent=ibBg
+    -- Neon border
+    local ibNeon = makePart({ Name="InfoNeon_"..i, Size=Vector3.new(9.3, 0.25, 0.3),
+        Position=Vector3.new(ib.x, 8.8, ib.z),
+        BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.2 })
+    ibNeon.Color = Color3.fromRGB(80,180,255)
+end
+
+print("[BrainrotRoubo] Mapa COMPLETO gerado: esteira central com " .. #GameConfig.CONVEYOR_WAYPOINTS .. " waypoints, NPC Zé das Upgrades, pets, pódio 3D, arcos de entrada, vigas industriais, zona VIP e painéis informativos!")
