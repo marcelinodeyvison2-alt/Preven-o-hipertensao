@@ -112,15 +112,8 @@ end)
 -- ── Trade events ──────────────────────────────────────────────────────────────
 
 remotes.TradeRequestIncoming.OnClientEvent:Connect(function(data)
-    GUIManager.showTradeRequest(data)
+    GUIManager.showTradeRequestModal(data)
     EffectsManager.playSound("Notification")
-    -- Auto-respond UI: player can accept/decline via the trade panel that opened
-    -- For now, auto-accept after opening panel (player clicks Confirm to lock)
-    -- Actual accept/decline comes from RespondTrade button in UI
-    -- Since we opened the trade panel automatically, fire accept
-    task.delay(0.5, function()
-        remotes.RespondTrade:FireServer(data.tradeId, true)
-    end)
 end)
 
 remotes.TradeStateUpdate.OnClientEvent:Connect(function(trade)
@@ -143,6 +136,12 @@ end)
 
 remotes.ClanRankingUpdate.OnClientEvent:Connect(function(rows)
     GUIManager.updateClanRanking(rows)
+end)
+
+-- ── Mission events ────────────────────────────────────────────────────────────
+
+remotes.MissionUpdate.OnClientEvent:Connect(function(missions)
+    GUIManager.updateMissions(missions)
 end)
 
 -- ── Proximity prompts on hub buildings ───────────────────────────────────────

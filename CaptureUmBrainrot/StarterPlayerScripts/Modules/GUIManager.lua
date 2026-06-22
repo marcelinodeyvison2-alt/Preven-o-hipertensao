@@ -152,6 +152,8 @@ local clanBtn    = hudBtn2("🏛️ Clã",       0,   Color3.fromRGB(80,40,140))
 tradeBtn.Position = UDim2.new(1,-238,0.5,-18)
 clanBtn.Position  = UDim2.new(1,-120,0.5,-18)
 
+local missionsBtn = hudBtn2("📋 Missões", 246, Color3.fromRGB(140,100,0))
+
 -- ── Capture Popup ─────────────────────────────────────────────────────────────
 
 local popSG = newSG("CapturePopup_GUI", 5)
@@ -590,6 +592,70 @@ tradeBtn.MouseButton1Click:Connect(function()
     if tradeSG.Enabled then refreshTradeUI() end
 end)
 
+-- ── Trade Request Modal ────────────────────────────────────────────────────────
+
+local tradeReqSG = newSG("TradeReq_GUI", 10); tradeReqSG.Enabled = false
+local tradeReqFrame = frm(tradeReqSG, {
+    Size=UDim2.new(0,440,0,215), Position=UDim2.new(0.5,-220,0.5,-107),
+    BackgroundColor3=Color3.fromRGB(15,25,40)
+})
+corner(tradeReqFrame,0.06); stroke(tradeReqFrame,Color3.fromRGB(40,180,80),3)
+
+lbl(tradeReqFrame,{Size=UDim2.new(1,-16,0,46),Position=UDim2.new(0,8,0,8),
+    Text="🔄 Solicitação de Troca",TextColor3=Color3.fromRGB(80,220,120),Font=Enum.Font.GothamBold})
+local tradeReqMsg   = lbl(tradeReqFrame,{Size=UDim2.new(1,-16,0,46),Position=UDim2.new(0,8,0,58),
+    Text="",TextColor3=C.Text,Font=Enum.Font.Gotham})
+local tradeReqTimer = lbl(tradeReqFrame,{Size=UDim2.new(1,-16,0,28),Position=UDim2.new(0,8,0,108),
+    Text="",TextColor3=C.TextDim,Font=Enum.Font.Gotham})
+
+local tradeReqAccept  = btn(tradeReqFrame,{Size=UDim2.new(0.43,0,0,48),Position=UDim2.new(0.04,0,0,158),
+    Text="✅ Aceitar",BackgroundColor3=Color3.fromRGB(40,160,60)})
+colorBtn(tradeReqAccept,Color3.fromRGB(40,160,60))
+local tradeReqDecline = btn(tradeReqFrame,{Size=UDim2.new(0.43,0,0,48),Position=UDim2.new(0.53,0,0,158),
+    Text="❌ Recusar",BackgroundColor3=C.Error})
+colorBtn(tradeReqDecline,C.Error)
+
+local pendingTradeRequest = nil
+
+tradeReqAccept.MouseButton1Click:Connect(function()
+    if not pendingTradeRequest then return end
+    local data = pendingTradeRequest
+    pendingTradeRequest = nil
+    tradeReqSG.Enabled  = false
+    game.ReplicatedStorage.RemoteEvents.RespondTrade:FireServer(data.tradeId, true)
+    tradeSG.Enabled = true
+    activeTrade = { id=data.tradeId, partnerName=data.from, myOffer={}, theirItems={} }
+    refreshTradeUI()
+end)
+
+tradeReqDecline.MouseButton1Click:Connect(function()
+    if not pendingTradeRequest then return end
+    local data = pendingTradeRequest
+    pendingTradeRequest = nil
+    tradeReqSG.Enabled  = false
+    game.ReplicatedStorage.RemoteEvents.RespondTrade:FireServer(data.tradeId, false)
+end)
+
+local function showTradeRequestModal(data)
+    pendingTradeRequest = data
+    tradeReqMsg.Text    = "🔄 "..data.from.." quer trocar com você!"
+    tradeReqTimer.Text  = "⏱️ Expira em 30s"
+    tradeReqSG.Enabled  = true
+
+    task.spawn(function()
+        for rem = 29, 0, -1 do
+            task.wait(1)
+            if pendingTradeRequest ~= data then return end
+            tradeReqTimer.Text = "⏱️ Expira em "..rem.."s"
+        end
+        if pendingTradeRequest == data then
+            pendingTradeRequest = nil
+            tradeReqSG.Enabled  = false
+            game.ReplicatedStorage.RemoteEvents.RespondTrade:FireServer(data.tradeId, false)
+        end
+    end)
+end
+
 -- ── Clan Panel ────────────────────────────────────────────────────────────────
 
 local clanSG = newSG("Clan_GUI",3); clanSG.Enabled = false
@@ -663,6 +729,62 @@ local function refreshClanRanking(rows)
 end
 
 clanBtn.MouseButton1Click:Connect(function() clanSG.Enabled = not clanSG.Enabled; if clanSG.Enabled then refreshClanInfo() end end)
+
+-- ── Missions Panel ─────────────────────────────────────────────────────────────
+
+local missSG = newSG("Missions_GUI",3); missSG.Enabled = false
+local missPanel = frm(missSG,{Size=UDim2.new(0.55,0,0.82,0),Position=UDim2.new(0.225,0,0.09,0),
+    BackgroundColor3=C.Background}); corner(missPanel,0.04); stroke(missPanel,C.Gold)
+panelTitle(missPanel,"📋 Missões Diárias",C.Gold); closeBtn(missPanel,missSG)
+lbl(missPanel,{Size=UDim2.new(1,-16,0,24),Position=UDim2.new(0,8,0,54),
+    Text="Novas missões a cada dia à meia-noite.",TextColor3=C.TextDim,Font=Enum.Font.Gotham})
+
+local missListFrame = frm(missPanel,{Size=UDim2.new(1,-16,1,-88),Position=UDim2.new(0,8,0,86),
+    BackgroundColor3=C.Background}); corner(missListFrame); listLayout(missListFrame); pad(missListFrame,6)
+
+local currentMissions = {}
+
+local function refreshMissionsUI()
+    for _, c in ipairs(missListFrame:GetChildren()) do if c:IsA("Frame") then c:Destroy() end end
+
+    if #currentMissions == 0 then
+        lbl(missListFrame,{Size=UDim2.new(1,-12,0,60),Text="Carregando missões...",TextColor3=C.TextDim,Font=Enum.Font.Gotham})
+        return
+    end
+
+    for i, m in ipairs(currentMissions) do
+        local card = frm(missListFrame,{Size=UDim2.new(1,-12,0,120),LayoutOrder=i,
+            BackgroundColor3=m.claimed and Color3.fromRGB(15,30,15) or (m.completed and Color3.fromRGB(18,35,18) or Color3.fromRGB(22,22,45))})
+        corner(card,0.1); stroke(card,m.claimed and C.TextDim or (m.completed and C.Success or C.Accent),2)
+
+        lbl(card,{Size=UDim2.new(0.76,0,0.34,0),Position=UDim2.new(0.01,0,0,4),
+            Text=m.description,TextXAlignment=Enum.TextXAlignment.Left,TextColor3=C.Text,Font=Enum.Font.GothamBold})
+        lbl(card,{Size=UDim2.new(0.22,0,0.34,0),Position=UDim2.new(0.77,0,0,4),
+            Text="+"..m.reward.."⭐",TextColor3=C.Gold})
+
+        local pct = math.min(1, m.progress / math.max(1, m.goal))
+        local barBg = frm(card,{Size=UDim2.new(0.98,0,0.18,0),Position=UDim2.new(0.01,0,0.37,0),
+            BackgroundColor3=Color3.fromRGB(30,30,50)}); corner(barBg,0.3)
+        local barFill = frm(barBg,{Size=UDim2.new(pct,0,1,0),
+            BackgroundColor3=m.completed and C.Success or C.Accent}); corner(barFill,0.3)
+
+        lbl(card,{Size=UDim2.new(0.6,0,0.24,0),Position=UDim2.new(0.01,0,0.57,0),
+            Text=tostring(m.progress).." / "..tostring(m.goal),
+            TextXAlignment=Enum.TextXAlignment.Left,TextColor3=C.TextDim,Font=Enum.Font.Gotham})
+
+        if m.completed and not m.claimed then
+            btn(card,{Size=UDim2.new(0.35,0,0.3,0),Position=UDim2.new(0.63,0,0.65,0),
+                Text="🎁 Coletar",BackgroundColor3=C.Gold,TextColor3=Color3.fromRGB(0,0,0)},
+                function() game.ReplicatedStorage.RemoteEvents.ClaimMissionReward:FireServer(i) end)
+        elseif m.claimed then
+            lbl(card,{Size=UDim2.new(0.35,0,0.3,0),Position=UDim2.new(0.63,0,0.65,0),
+                Text="✅ Coletado",TextColor3=C.Success,Font=Enum.Font.GothamBold})
+        end
+    end
+end
+
+missionsBtn.MouseButton1Click:Connect(function() missSG.Enabled = not missSG.Enabled end)
+missSG:GetPropertyChangedSignal("Enabled"):Connect(function() if missSG.Enabled then refreshMissionsUI() end end)
 
 -- ── Public API ────────────────────────────────────────────────────────────────
 
@@ -751,5 +873,12 @@ eventBadge.InputBegan:Connect(function(inp)
         GUIManager.openEventPanel()
     end
 end)
+
+function GUIManager.showTradeRequestModal(data) showTradeRequestModal(data) end
+
+function GUIManager.updateMissions(missions)
+    currentMissions = missions or {}
+    if missSG.Enabled then refreshMissionsUI() end
+end
 
 return GUIManager

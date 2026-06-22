@@ -34,6 +34,8 @@ local evClanUpd      = remotes:WaitForChild("ClanUpdate")
 
 local bindCapture     = bindables:WaitForChild("BrainrotCaptured")
 local bindDataChanged = bindables:WaitForChild("PlayerDataChanged")
+local bindSold        = bindables:WaitForChild("BrainrotsSold")
+local bindEgg         = bindables:WaitForChild("PetEggOpened")
 
 -- DataStore
 local dataStore
@@ -62,6 +64,7 @@ local function defaultSession()
         pets          = {},    -- list of pet names owned
         equippedPets  = {},    -- list of pet names equipped (max 3)
         clanName      = "",
+        missions      = { day="", list={} },
     }
 end
 
@@ -81,6 +84,7 @@ local function loadData(userId)
     s.pets          = saved.pets           or {}
     s.equippedPets  = saved.equippedPets   or {}
     s.clanName      = saved.clanName       or ""
+    s.missions      = saved.missions       or { day="", list={} }
     if saved.unlockedAreas then
         for k, v in pairs(saved.unlockedAreas) do s.unlockedAreas[k] = v end
     end
@@ -100,6 +104,7 @@ local function saveData(userId, session)
             pets          = session.pets,
             equippedPets  = session.equippedPets,
             clanName      = session.clanName,
+            missions      = session.missions,
         })
     end)
 end
@@ -245,6 +250,7 @@ evSellReq.OnServerEvent:Connect(function(player, rarityFilter)
     evNotif:FireClient(player, { type=GameConfig.NotifType.Success,
         message = "💰 Vendeu "..count.." item(s) por "..gained.." Aura!" })
     bindDataChanged:Fire()
+    bindSold:Fire(player, count, gained)
 end)
 
 -- ── Area unlock handler ───────────────────────────────────────────────────────
@@ -299,6 +305,7 @@ evOpenEgg.OnServerEvent:Connect(function(player)
     evNotif:FireClient(player, { type=GameConfig.NotifType.Rare,
         message="🥚 Voce ganhou: "..pet.Emoji.." "..pet.Name.." ("..rarity..")!" })
     bindDataChanged:Fire()
+    bindEgg:Fire(player)
 end)
 
 -- ── Equip / Unequip pet ───────────────────────────────────────────────────────

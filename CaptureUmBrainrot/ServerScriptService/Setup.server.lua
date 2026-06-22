@@ -40,6 +40,10 @@ local REMOTE_EVENTS = {
     "ClanUpdate", "ClanRankingUpdate",
     -- Clans (C→S)
     "CreateClan", "JoinClan", "LeaveClan", "KickMember", "PromoteLeader",
+    -- Missions (S→C)
+    "MissionUpdate",
+    -- Missions (C→S)
+    "ClaimMissionReward",
 }
 
 for _, name in ipairs(REMOTE_EVENTS) do
@@ -49,9 +53,11 @@ for _, name in ipairs(REMOTE_EVENTS) do
 end
 
 local BINDABLE_EVENTS = {
-    "BrainrotCaptured",   -- Spawner → PlayerManager
+    "BrainrotCaptured",   -- Spawner → PlayerManager + MissionManager
     "PlayerDataChanged",  -- PlayerManager → RankingManager
     "EventChanged",       -- EventManager → BrainrotSpawner
+    "BrainrotsSold",      -- PlayerManager → MissionManager
+    "PetEggOpened",       -- PlayerManager → MissionManager
 }
 
 for _, name in ipairs(BINDABLE_EVENTS) do

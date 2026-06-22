@@ -10,7 +10,8 @@
         "BrainrotConfig": { "$path": "ReplicatedStorage/Modules/BrainrotConfig.lua" },
         "GameConfig":     { "$path": "ReplicatedStorage/Modules/GameConfig.lua" },
         "PetConfig":      { "$path": "ReplicatedStorage/Modules/PetConfig.lua" },
-        "EventConfig":    { "$path": "ReplicatedStorage/Modules/EventConfig.lua" }
+        "EventConfig":    { "$path": "ReplicatedStorage/Modules/EventConfig.lua" },
+        "MissionConfig":  { "$path": "ReplicatedStorage/Modules/MissionConfig.lua" }
       }
     },
 
@@ -26,7 +27,8 @@
       "RankingManager": { "$path": "ServerScriptService/RankingManager.server.lua" },
       "EventManager":   { "$path": "ServerScriptService/EventManager.server.lua" },
       "TradeManager":   { "$path": "ServerScriptService/TradeManager.server.lua" },
-      "ClanManager":    { "$path": "ServerScriptService/ClanManager.server.lua" }
+      "ClanManager":    { "$path": "ServerScriptService/ClanManager.server.lua" },
+      "MissionManager": { "$path": "ServerScriptService/MissionManager.server.lua" }
     },
 
     "StarterPlayer": {

@@ -1,11 +1,11 @@
 -- BrainrotSpawner.server.lua
--- Spawns Brainrots in each area, animates them, and handles ProximityPrompt captures.
+-- Spawns Brainrots in each area and handles ProximityPrompt captures.
+-- Uses a single central Heartbeat loop instead of per-brainrot connections.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
 local RunService        = game:GetService("RunService")
 
--- Wait for Setup to finish
 repeat task.wait(0.2) until ReplicatedStorage:GetAttribute("SetupComplete")
 
 local BrainrotConfig  = require(ReplicatedStorage.Modules.BrainrotConfig)
@@ -17,49 +17,55 @@ local brainrotsFolder = workspace:WaitForChild("ActiveBrainrots")
 local bindables       = ReplicatedStorage:WaitForChild("BindableEvents")
 local captureBindable = bindables:WaitForChild("BrainrotCaptured")
 
--- track how many brainrots are live per area
 local areaCount = {}
 for areaKey in pairs(BrainrotConfig.Areas) do
     areaCount[areaKey] = 0
 end
 
--- ── Model factory ─────────────────────────────────────────────────────────────
+-- ── Central animation loop ─────────────────────────────────────────────────────
+-- One Heartbeat connection for all brainrots; entries auto-clean when body is removed.
 
-local bobTween = TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+local activeBodies = {}  -- { body, basePos, startTime }
+
+RunService.Heartbeat:Connect(function()
+    local t = tick()
+    for i = #activeBodies, 1, -1 do
+        local e = activeBodies[i]
+        if not e.body or not e.body.Parent then
+            table.remove(activeBodies, i)
+        else
+            local age  = t - e.startTime
+            local bobY = math.sin(age * 2) * 0.6
+            e.body.CFrame = CFrame.new(e.basePos + Vector3.new(0, bobY, 0))
+                * CFrame.Angles(0, age * 2.5, 0)
+        end
+    end
+end)
+
+-- ── Model factory ─────────────────────────────────────────────────────────────
 
 local function buildBrainrotModel(bData, rData, position)
     local model = Instance.new("Model")
     model.Name  = bData.Name
 
-    -- Sphere body
     local body = Instance.new("Part")
-    body.Name      = "Body"
-    body.Shape     = Enum.PartType.Ball
-    body.Size      = GameConfig.BrainrotSize
-    body.Position  = position
-    body.Anchored  = true
-    body.Material  = Enum.Material.Neon
-    body.Color     = rData.Color
+    body.Name       = "Body"
+    body.Shape      = Enum.PartType.Ball
+    body.Size       = GameConfig.BrainrotSize
+    body.Position   = position
+    body.Anchored   = true
+    body.Material   = Enum.Material.Neon
+    body.Color      = rData.Color
     body.CastShadow = false
-    body.Parent    = model
+    body.Parent     = model
 
-    -- Glow
     local light = Instance.new("PointLight")
     light.Color      = rData.GlowColor
     light.Brightness = 3
     light.Range      = 14
     light.Parent     = body
 
-    -- Floating bob animation
-    local targetCF = body.CFrame + Vector3.new(0, 1.2, 0)
-    TweenService:Create(body, bobTween, { CFrame = body.CFrame * CFrame.new(0, 1.2, 0) }):Play()
-
-    -- Spin via Heartbeat (lightweight)
-    local conn
-    conn = RunService.Heartbeat:Connect(function()
-        if not model.Parent then conn:Disconnect(); return end
-        body.CFrame = body.CFrame * CFrame.Angles(0, math.rad(1.5), 0)
-    end)
+    activeBodies[#activeBodies + 1] = { body = body, basePos = position, startTime = tick() }
 
     -- BillboardGui
     local bb = Instance.new("BillboardGui")
@@ -98,16 +104,14 @@ local function buildBrainrotModel(bData, rData, position)
     uc2.CornerRadius = UDim.new(0.25, 0)
     uc2.Parent       = rarityLabel
 
-    -- ProximityPrompt
     local prompt = Instance.new("ProximityPrompt")
-    prompt.ActionText          = "Capturar!"
-    prompt.ObjectText          = bData.Name
-    prompt.HoldDuration        = 0
+    prompt.ActionText            = "Capturar!"
+    prompt.ObjectText            = bData.Name
+    prompt.HoldDuration          = 0
     prompt.MaxActivationDistance = 10
-    prompt.KeyboardKeyCode     = Enum.KeyCode.E
-    prompt.Parent              = body
+    prompt.KeyboardKeyCode       = Enum.KeyCode.E
+    prompt.Parent                = body
 
-    -- Metadata values (read by PlayerManager via the BindableEvent payload)
     local function makeVal(class, name, value)
         local v = Instance.new(class)
         v.Name   = name
@@ -119,7 +123,7 @@ local function buildBrainrotModel(bData, rData, position)
     makeVal("StringValue", "Rarity",       bData.Rarity)
     makeVal("StringValue", "Emoji",        bData.Emoji)
     makeVal("IntValue",    "AuraValue",    rData.AuraValue)
-    makeVal("StringValue", "AreaKey",      "") -- filled in by spawner
+    makeVal("StringValue", "AreaKey",      "")
 
     model.PrimaryPart = body
     return model, prompt
@@ -151,16 +155,15 @@ local function spawnOneBrainrot(areaKey, areaData)
     local sp       = points[math.random(1, #points)]
     local position = sp.Position + Vector3.new(0, GameConfig.SpawnHeightOffset, 0)
 
-    local rarityKey  = BrainrotConfig.rollRarity(areaData.Rarities)
-    local rData      = BrainrotConfig.Rarities[rarityKey]
-    local bData      = BrainrotConfig.randomBrainrot(rarityKey)
+    local rarityKey = BrainrotConfig.rollRarity(areaData.Rarities)
+    local rData     = BrainrotConfig.Rarities[rarityKey]
+    local bData     = BrainrotConfig.randomBrainrot(rarityKey)
 
     local model, prompt = buildBrainrotModel(bData, rData, position)
     model:FindFirstChild("AreaKey").Value = areaKey
     model.Parent = brainrotsFolder
     areaCount[areaKey] = areaCount[areaKey] + 1
 
-    -- Pop-in tween
     local body = model.PrimaryPart
     if body then
         body.Size = Vector3.new(0.01, 0.01, 0.01)
@@ -169,7 +172,6 @@ local function spawnOneBrainrot(areaKey, areaData)
         }):Play()
     end
 
-    -- ProximityPrompt capture handler (server-authoritative)
     local captured = false
     prompt.Triggered:Connect(function(player)
         if captured then return end
@@ -178,16 +180,15 @@ local function spawnOneBrainrot(areaKey, areaData)
 
         areaCount[areaKey] = math.max(0, areaCount[areaKey] - 1)
         captureBindable:Fire(player, {
-            Name     = bData.Name,
-            Rarity   = bData.Rarity,
-            Emoji    = bData.Emoji,
+            Name      = bData.Name,
+            Rarity    = bData.Rarity,
+            Emoji     = bData.Emoji,
             AuraValue = rData.AuraValue,
-            AreaKey  = areaKey,
+            AreaKey   = areaKey,
         })
         popModel(model)
     end)
 
-    -- Auto-despawn
     task.delay(GameConfig.BrainrotLifetime, function()
         if model.Parent and not captured then
             captured = true
@@ -201,16 +202,13 @@ end
 
 for areaKey, areaData in pairs(BrainrotConfig.Areas) do
     task.spawn(function()
-        -- Initial fill
         for _ = 1, areaData.MaxSpawns do
             spawnOneBrainrot(areaKey, areaData)
             task.wait(0.3)
         end
 
-        -- Ongoing top-up
         while true do
             task.wait(areaData.SpawnInterval)
-            -- During events with SpawnMultiplier, try spawning extra brainrots
             local spawnMult = (SharedData.currentEvent and SharedData.currentEvent.SpawnMultiplier) or 1
             local cap = math.min(areaData.MaxSpawns * spawnMult, areaData.MaxSpawns * 3)
             if areaCount[areaKey] < cap then
