@@ -702,7 +702,7 @@ local hatStar = makePart({ Name="VendedorHatStar", Shape=Enum.PartType.Ball, Siz
     Position=Vector3.new(0,10.4,-33), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
 hatStar.Color = Color3.fromRGB(255,220,60)
-Instance.new("PointLight").Color=Color3.fromRGB(255,220,60); local hatL=Instance.new("PointLight"); hatL.Color=Color3.fromRGB(255,220,60); hatL.Brightness=2; hatL.Range=10; hatL.Parent=hatStar
+local hatL=Instance.new("PointLight"); hatL.Color=Color3.fromRGB(255,220,60); hatL.Brightness=2; hatL.Range=10; hatL.Parent=hatStar
 
 -- Cabeça
 local vendHead = makePart({
@@ -760,17 +760,17 @@ local ratBody = makePart({ Name="PetRatinho_Body", Shape=Enum.PartType.Ball,
     Size=Vector3.new(1.2,0.9,1.5), Position=Vector3.new(-3,0.45,-33),
     BrickColor=BrickColor.new("Medium stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
 makePart({ Name="PetRatinho_Head", Shape=Enum.PartType.Ball, Size=Vector3.new(0.9,0.9,0.9),
-    Position=Vector3.new(-3.2,1.05,-41.2), BrickColor=BrickColor.new("Medium stone grey"),
+    Position=Vector3.new(-3.2,1.05,-33.2), BrickColor=BrickColor.new("Medium stone grey"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false })
 makePart({ Name="PetRatinho_EarL", Shape=Enum.PartType.Ball, Size=Vector3.new(0.35,0.35,0.1),
-    Position=Vector3.new(-2.95,1.6,-41.1), BrickColor=BrickColor.new("Light reddish violet"),
+    Position=Vector3.new(-2.95,1.6,-33.1), BrickColor=BrickColor.new("Light reddish violet"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false })
 makePart({ Name="PetRatinho_EarR", Shape=Enum.PartType.Ball, Size=Vector3.new(0.35,0.35,0.1),
-    Position=Vector3.new(-3.45,1.6,-41.1), BrickColor=BrickColor.new("Light reddish violet"),
+    Position=Vector3.new(-3.45,1.6,-33.1), BrickColor=BrickColor.new("Light reddish violet"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false })
 -- Brilho nos olhos do ratinho
 local ratEye = makePart({ Name="PetRatinho_Eye", Shape=Enum.PartType.Ball, Size=Vector3.new(0.2,0.2,0.2),
-    Position=Vector3.new(-3.1,1.1,-40.8), BrickColor=BrickColor.new("Institutional white"),
+    Position=Vector3.new(-3.1,1.1,-32.8), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
 ratEye.Color = Color3.fromRGB(255,50,50)
 -- Billboard com nome do pet
@@ -785,12 +785,12 @@ local gatoBody = makePart({ Name="PetGato_Body", Shape=Enum.PartType.Ball,
     BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
 gatoBody.Color = Color3.fromRGB(160,100,255)
 makePart({ Name="PetGato_Head", Shape=Enum.PartType.Ball, Size=Vector3.new(1.1,1.1,1.1),
-    Position=Vector3.new(3.2,1.3,-41.2), BrickColor=BrickColor.new("Institutional white"),
+    Position=Vector3.new(3.2,1.3,-33.2), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false }).Color = Color3.fromRGB(160,100,255)
-makePart({ Name="PetGato_EarL", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(2.9,2.0,-41.15),
+makePart({ Name="PetGato_EarL", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(2.9,2.0,-33.15),
     BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic,
     CanCollide=false }).Color = Color3.fromRGB(160,100,255)
-makePart({ Name="PetGato_EarR", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(3.5,2.0,-41.15),
+makePart({ Name="PetGato_EarR", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(3.5,2.0,-33.15),
     BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic,
     CanCollide=false }).Color = Color3.fromRGB(160,100,255)
 -- Aura mística ao redor do gato
@@ -800,7 +800,7 @@ gatoPE.Color  = ColorSequence.new({ ColorSequenceKeypoint.new(0,Color3.fromRGB(1
 gatoPE.Size   = NumberSequence.new({ NumberSequenceKeypoint.new(0,0.2), NumberSequenceKeypoint.new(1,0) })
 gatoPE.Lifetime=NumberRange.new(0.8,1.6); gatoPE.Rate=12; gatoPE.Speed=NumberRange.new(1,3); gatoPE.SpreadAngle=Vector2.new(180,180)
 local gatoEye = makePart({ Name="PetGato_Eye", Shape=Enum.PartType.Ball, Size=Vector3.new(0.25,0.25,0.25),
-    Position=Vector3.new(3.1,1.35,-40.7), BrickColor=BrickColor.new("Institutional white"),
+    Position=Vector3.new(3.1,1.35,-32.7), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
 gatoEye.Color = Color3.fromRGB(80,200,255)
 local catLight = Instance.new("PointLight"); catLight.Color=Color3.fromRGB(160,80,255); catLight.Brightness=2; catLight.Range=10; catLight.Parent=gatoBody

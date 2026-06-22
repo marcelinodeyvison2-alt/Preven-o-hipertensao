@@ -73,6 +73,8 @@ local IdleAuraRE        = makeRE("IdleAuraGain")
 -- Trail skin remotes
 local ChangeTrailSkinEvent = makeRE("ChangeTrailSkin")
 local TrailSkinUpdateRE    = makeRE("TrailSkinUpdate")
+-- Tutorial
+local TutorialDoneEvent    = makeRE("TutorialDone")
 
 -- =====================================================
 --  MUNDO
@@ -548,7 +550,7 @@ end
 local function saveData(player)
     local data = PlayerData[player.UserId]
     if not data then return end
-    if data then data.lastSaveTime = os.time() end
+    data.lastSaveTime = os.time()
     pcall(function() DataStore:SetAsync("P_"..player.UserId, data) end)
 end
 
@@ -583,14 +585,13 @@ local function pickMutation(forceLua)
     return GameConfig.MUTATIONS[1]
 end
 
-local function pickBrainrotType(petRarityBonus)
+local function pickBrainrotType()
     local weights = {}; local total = 0
     local evBonus = GameConfig.CURRENT_EVENT and GameConfig.CURRENT_EVENT.rarBonus or 1
     for rarity, w in pairs(GameConfig.RARITY_WEIGHTS) do
         local rank = GameConfig.RARITY_RANK[rarity] or 1
         local adj  = w
-        if evBonus        and rank >= 4 then adj = math.floor(adj * evBonus) end
-        if petRarityBonus and rank >= 4 then adj = math.floor(adj * (1 + petRarityBonus)) end
+        if evBonus and rank >= 4 then adj = math.floor(adj * evBonus) end
         weights[rarity] = adj; total = total + adj
     end
     local roll = math.random(1, total); local acc = 0; local chosen = "Comum"
@@ -731,7 +732,7 @@ local function spawnBrainrot()
 
     globalSpawnCount = globalSpawnCount + 1
     local isLua   = (globalSpawnCount % GameConfig.LUA_DE_SANGUE_INTERVAL == 0)
-    local bt      = pickBrainrotType(0)
+    local bt      = pickBrainrotType()  -- bônus de pet não se aplica ao spawn global
     local mut     = pickMutation(isLua)
     local rarColor = GameConfig.RARITY_COLORS[bt.rarity]
 
@@ -974,7 +975,11 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     local newAura   = math.min(data.aura + totalGain, cap)
     local actual    = newAura - data.aura
     if actual <= 0 then
-        NotifyRE:FireClient(player,"Aura no limite! Faca rebirth.",Color3.fromRGB(255,200,0)); return
+        -- Aura cheia: remove o brainrot da esteira e avisa, mas não processa o roubo completo
+        ConveyorBrainrots[brainrotPart] = nil
+        brainrotPart:Destroy()
+        NotifyRE:FireClient(player,"Aura no limite! Faça rebirth para continuar.",Color3.fromRGB(255,200,0))
+        return
     end
 
     data.aura = newAura; data.totalStolen = (data.totalStolen or 0)+1
@@ -1067,6 +1072,9 @@ end)
 -- =====================================================
 RebirthEvent.OnServerEvent:Connect(function(player)
     local data=PlayerData[player.UserId]; if not data then return end
+    if data.rebirths >= GameConfig.MAX_REBIRTHS_FOR_PRESTIGE then
+        NotifyRE:FireClient(player,"Rebirth máximo atingido! Faça Prestígio para continuar.",Color3.fromRGB(255,200,0)); return
+    end
     local cost=getRebirthCost(data.rebirths)
     if data.aura < cost then
         NotifyRE:FireClient(player,string.format("Precisa de %s aura!",formatBig(cost)),Color3.fromRGB(255,80,80)); return
@@ -1173,8 +1181,13 @@ EquipPetEvent.OnServerEvent:Connect(function(player, petId)
     end
     PetUpdateRE:FireClient(player,{owned=data.pets,active=data.activePet})
     UpdateAuraRE:FireClient(player,buildUpdatePayload(data))
-    local name = data.activePet and data.activePet or "nenhum"
-    NotifyRE:FireClient(player,"Pet ativo: "..name,Color3.fromRGB(200,255,200))
+    local petName = "nenhum"
+    if data.activePet then
+        for _, p in ipairs(GameConfig.PETS) do
+            if p.id == data.activePet then petName = p.icon .. " " .. p.name; break end
+        end
+    end
+    NotifyRE:FireClient(player,"Pet ativo: "..petName,Color3.fromRGB(200,255,200))
 end)
 
 -- =====================================================
@@ -1448,8 +1461,6 @@ end)
 -- =====================================================
 --  TUTORIAL COMPLETO
 -- =====================================================
--- TutorialDone: marca tutorial como visto
-local TutorialDoneEvent = makeRE("TutorialDone")
 TutorialDoneEvent.OnServerEvent:Connect(function(player)
     local data=PlayerData[player.UserId]; if not data then return end
     data.hasSeenTutorial = true
@@ -1492,12 +1503,18 @@ task.spawn(function()
         local isWeekend = (wday == 6 and hour >= 18) or (wday == 7) or (wday == 1)
         if isWeekend and not weekendActive then
             weekendActive = true
-            GameConfig.CURRENT_EVENT = GameConfig.WEEKEND_EVENT
-            EventUpdateRE:FireAllClients(GameConfig.CURRENT_EVENT)
+            -- Só ativa se não há evento admin em vigor
+            if not GameConfig.CURRENT_EVENT then
+                GameConfig.CURRENT_EVENT = GameConfig.WEEKEND_EVENT
+                EventUpdateRE:FireAllClients(GameConfig.CURRENT_EVENT)
+            end
         elseif not isWeekend and weekendActive then
             weekendActive = false
-            GameConfig.CURRENT_EVENT = nil
-            EventUpdateRE:FireAllClients(nil)
+            -- Só desativa se o evento atual é o de fim de semana (não sobrescreve evento admin)
+            if GameConfig.CURRENT_EVENT == GameConfig.WEEKEND_EVENT then
+                GameConfig.CURRENT_EVENT = nil
+                EventUpdateRE:FireAllClients(nil)
+            end
         end
     end
 end)
