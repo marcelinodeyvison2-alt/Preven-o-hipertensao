@@ -12,28 +12,38 @@ local head      = character:WaitForChild("Head")
 local RemoteFolder = ReplicatedStorage:WaitForChild("Remotes")
 local UpdateAuraRE = RemoteFolder:WaitForChild("UpdateAura")
 
+-- Cores por rebirth (máximo 12)
 local REBIRTH_COLORS = {
-    [0] = Color3.fromRGB(180, 180, 180),
-    [1] = Color3.fromRGB(80,  210, 80 ),
-    [2] = Color3.fromRGB(60,  120, 255),
-    [3] = Color3.fromRGB(190, 50,  255),
-    [4] = Color3.fromRGB(255, 195, 0  ),
-    [5] = Color3.fromRGB(255, 50,  50 ),
-    [6] = Color3.fromRGB(255, 255, 120),
-    [7] = Color3.fromRGB(0,   220, 200),
-    [8] = Color3.fromRGB(255, 255, 255),
+    [0]  = Color3.fromRGB(180, 180, 180),
+    [1]  = Color3.fromRGB(80,  210, 80 ),
+    [2]  = Color3.fromRGB(60,  120, 255),
+    [3]  = Color3.fromRGB(190, 50,  255),
+    [4]  = Color3.fromRGB(255, 195, 0  ),
+    [5]  = Color3.fromRGB(255, 50,  50 ),
+    [6]  = Color3.fromRGB(255, 255, 120),
+    [7]  = Color3.fromRGB(0,   220, 200),
+    [8]  = Color3.fromRGB(255, 255, 255),
+    [9]  = Color3.fromRGB(255, 100, 220),
+    [10] = Color3.fromRGB(180, 80,  255),
+    [11] = Color3.fromRGB(255, 160, 40 ),
+    [12] = Color3.fromRGB(255, 215, 0  ),
 }
 
+-- Títulos automáticos por rebirth (quando sem título equipado)
 local REBIRTH_TITLES = {
-    [0] = "Novato",
-    [1] = "Ladrão",
-    [2] = "Furtivo",
-    [3] = "Épico",
-    [4] = "Lendário",
-    [5] = "Mítico",
-    [6] = "Deus",
-    [7] = "Secreto",
-    [8] = "O ORIGINAL",
+    [0]  = "Novato",
+    [1]  = "Ladrão",
+    [2]  = "Furtivo",
+    [3]  = "Épico",
+    [4]  = "Lendário",
+    [5]  = "Mítico",
+    [6]  = "Deus",
+    [7]  = "Secreto",
+    [8]  = "O ORIGINAL",
+    [9]  = "⚡ Transcendente",
+    [10] = "🌌 Além do Limite",
+    [11] = "🔱 Imortal",
+    [12] = "👑 Divino Supremo",
 }
 
 local bb = Instance.new("BillboardGui")
@@ -82,13 +92,13 @@ infoLabel.Font                   = Enum.Font.Gotham
 infoLabel.Parent                 = bb
 
 local function getColor(rebirths)
-    local clamped = math.clamp(rebirths, 0, 8)
-    return REBIRTH_COLORS[clamped] or Color3.fromRGB(255, 255, 255)
+    local clamped = math.clamp(rebirths, 0, 12)
+    return REBIRTH_COLORS[clamped] or Color3.fromRGB(255, 215, 0)
 end
 
 local function getTitle(rebirths)
-    local clamped = math.clamp(rebirths, 0, 8)
-    return REBIRTH_TITLES[clamped] or "ALÉM DO LIMITE"
+    local clamped = math.clamp(rebirths, 0, 12)
+    return REBIRTH_TITLES[clamped] or "👑 Divino Supremo"
 end
 
 local lastRB = 0

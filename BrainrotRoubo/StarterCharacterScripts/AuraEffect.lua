@@ -71,8 +71,7 @@ trail.Attachment1 = att1
 trail.Enabled     = false
 trail.Parent      = root
 
--- Cores de aura por nível de rebirth
--- Segue a progressão de raridade do jogo
+-- Cores de aura por nível de rebirth (máximo 12 → prestígio)
 local REBIRTH_COLORS = {
     [0]  = Color3.fromRGB(200, 200, 200), -- Comum
     [1]  = Color3.fromRGB(80,  210, 80 ), -- Incomum
@@ -82,12 +81,16 @@ local REBIRTH_COLORS = {
     [5]  = Color3.fromRGB(255, 50,  50 ), -- Mítico
     [6]  = Color3.fromRGB(255, 255, 120), -- God
     [7]  = Color3.fromRGB(0,   220, 200), -- Secret
-    [8]  = Color3.fromRGB(255, 255, 255), -- OG (branco puro)
+    [8]  = Color3.fromRGB(255, 255, 255), -- OG
+    [9]  = Color3.fromRGB(255, 100, 220), -- Além do OG I
+    [10] = Color3.fromRGB(180, 80,  255), -- Além do OG II
+    [11] = Color3.fromRGB(255, 160, 40 ), -- Além do OG III
+    [12] = Color3.fromRGB(255, 215, 0  ), -- Máximo — Ouro Divino
 }
 
 local function getAuraColor(rebirths)
-    local clamped = math.clamp(rebirths, 0, 8)
-    return REBIRTH_COLORS[clamped] or Color3.fromRGB(255, 255, 255)
+    local clamped = math.clamp(rebirths, 0, 12)
+    return REBIRTH_COLORS[clamped] or Color3.fromRGB(255, 215, 0)
 end
 
 local lastRebirths = 0
