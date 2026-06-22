@@ -14,6 +14,8 @@ local EffectsManager = require(script.Parent.Modules.EffectsManager)
 local BrainrotConfig = require(ReplicatedStorage.Modules.BrainrotConfig)
 local GameConfig     = require(ReplicatedStorage.Modules.GameConfig)
 
+local C = GameConfig.UIColors
+
 repeat task.wait(0.2) until ReplicatedStorage:GetAttribute("SetupComplete")
 
 local remotes = ReplicatedStorage:WaitForChild("RemoteEvents")
@@ -163,8 +165,5 @@ connectPrompt("ClanHall",       function()
     -- Open clan panel
     GUIManager.pushNotification({ type=GameConfig.NotifType.Info, message="🏛️ Abra o painel de Clãs com o botão!" })
 end)
-
--- Reference colors for effects
-local C = GameConfig.UIColors
 
 print("[MainClient] All systems connected.")

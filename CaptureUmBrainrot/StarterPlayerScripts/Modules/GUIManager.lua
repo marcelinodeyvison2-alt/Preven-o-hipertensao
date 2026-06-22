@@ -826,14 +826,6 @@ function GUIManager.updateEvent(eventData)
     if evtSG.Enabled then refreshEventUI() end
 end
 
-function GUIManager.showTradeRequest(data)
-    pushNotif({ type=GameConfig.NotifType.Info,
-        message="🔄 "..data.from.." quer trocar com você!" })
-    tradeSG.Enabled = true
-    activeTrade = { id=data.tradeId, partnerName=data.from, myOffer={}, theirItems={} }
-    refreshTradeUI()
-end
-
 function GUIManager.updateTradeState(trade)
     if not trade then
         activeTrade = nil

@@ -19,7 +19,8 @@ local evCanc  = remotes:WaitForChild("CancelTrade")
 local evInc   = remotes:WaitForChild("TradeRequestIncoming")
 local evState = remotes:WaitForChild("TradeStateUpdate")
 local evRes   = remotes:WaitForChild("TradeResult")
-local evNotif = remotes:WaitForChild("Notification")
+local evNotif   = remotes:WaitForChild("Notification")
+local evSendInv = remotes:WaitForChild("SendInventory")
 
 -- ── Trade state helpers ───────────────────────────────────────────────────────
 
@@ -212,7 +213,6 @@ evConf.OnServerEvent:Connect(function(player, tradeId)
 
     local pA = Players:GetPlayerByUserId(trade.playerAId)
     local pB = Players:GetPlayerByUserId(trade.playerBId)
-    local evSendInv = remotes:WaitForChild("SendInventory")
 
     if pA then
         evRes:FireClient(pA, true, "✅ Troca concluida!")

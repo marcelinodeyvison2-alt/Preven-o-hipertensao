@@ -11,8 +11,6 @@ local BrainrotConfig = require(ReplicatedStorage.Modules.BrainrotConfig)
 
 local bindables      = ReplicatedStorage:WaitForChild("BindableEvents")
 local bindDataChg    = bindables:WaitForChild("PlayerDataChanged")
-local remotes        = ReplicatedStorage:WaitForChild("RemoteEvents")
-local evSendRank     = remotes:WaitForChild("SendRanking")
 
 -- ── Locate the SurfaceGui on the ranking board ────────────────────────────────
 
@@ -69,13 +67,6 @@ local function refreshBoard(ranking)
         row.Parent = rankList
     end
 end
-
--- ── Listen for ranking updates sent by PlayerManager ─────────────────────────
-
-evSendRank.OnServerEvent:Connect(function(_, ranking)
-    -- This event direction is server→client; we shouldn't receive it here.
-    -- RankingManager builds its own board based on bindable events.
-end)
 
 -- Rebuild board whenever player data changes
 bindDataChg.Event:Connect(function()
