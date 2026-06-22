@@ -135,8 +135,8 @@ local WPS    = GameConfig.CONVEYOR_WAYPOINTS   -- 4 waypoints em loop retangular
 local BLT_H  = 1.5    -- altura do piso da esteira
 local BLT_W  = 4.5    -- largura de cada faixa
 local BLT_Y  = BLT_H / 2
-local BLT_CLR = BrickColor.new("Deep orange")
-local BLT_MAT = Enum.Material.SmoothPlastic
+local BLT_CLR = BrickColor.new("Dark stone grey")
+local BLT_MAT = Enum.Material.Metal
 
 -- Limites do retângulo (extraídos dos waypoints)
 local minX = WPS[4].X   -- -40
@@ -170,19 +170,48 @@ local beltWest = makePart({ Name="ConveyorBelt_W",
     Position=Vector3.new(minX, BLT_Y, midZ),
     BrickColor=BLT_CLR, Material=BLT_MAT, CanCollide=true })
 
--- Setas de direção na face superior de cada seção
+-- Setas + faixas de aviso industriais na face superior
 local arrowData = {
-    { part=beltSouth, text="►   ►   ►   ►   ►   ►   ►   ►" },
-    { part=beltNorth, text="◄   ◄   ◄   ◄   ◄   ◄   ◄   ◄" },
-    { part=beltEast,  text="▲     ▲     ▲     ▲" },
-    { part=beltWest,  text="▼     ▼     ▼     ▼" },
+    { part=beltSouth, text="▶  ▶  ▶  ▶  ▶  ▶  ▶  ▶  ▶  ▶" },
+    { part=beltNorth, text="◀  ◀  ◀  ◀  ◀  ◀  ◀  ◀  ◀  ◀" },
+    { part=beltEast,  text="▲   ▲   ▲   ▲   ▲" },
+    { part=beltWest,  text="▼   ▼   ▼   ▼   ▼" },
 }
 for _, ad in ipairs(arrowData) do
     local sg  = Instance.new("SurfaceGui"); sg.Face=Enum.NormalId.Top; sg.Parent=ad.part
+    local bg  = Instance.new("Frame"); bg.Size=UDim2.new(1,0,1,0)
+    bg.BackgroundColor3=Color3.fromRGB(18,18,18); bg.BorderSizePixel=0; bg.Parent=sg
     local lbl = Instance.new("TextLabel"); lbl.Size=UDim2.new(1,0,1,0)
-    lbl.BackgroundColor3=Color3.fromRGB(40,20,0); lbl.BackgroundTransparency=0.35
+    lbl.BackgroundTransparency=1
     lbl.Text=ad.text; lbl.TextColor3=Color3.fromRGB(255,220,0); lbl.TextScaled=true
-    lbl.Font=Enum.Font.GothamBold; lbl.Parent=sg
+    lbl.Font=Enum.Font.GothamBold
+    lbl.TextStrokeTransparency=0.2; lbl.TextStrokeColor3=Color3.fromRGB(0,0,0)
+    lbl.Parent=bg
+end
+
+-- Caps de canto (cobrem as junções nos 4 waypoints)
+local capColors = {
+    Color3.fromRGB(255, 60,  60 ),  -- WP1 vermelho
+    Color3.fromRGB(255, 200, 0  ),  -- WP2 amarelo
+    Color3.fromRGB(60,  160, 255),  -- WP3 azul
+    Color3.fromRGB(60,  255, 120),  -- WP4 verde
+}
+for i, wp in ipairs(WPS) do
+    makePart({ Name="ConveyorCorner_"..i,
+        Size=Vector3.new(BLT_W+0.5, BLT_H+0.25, BLT_W+0.5),
+        Position=Vector3.new(wp.X, BLT_Y, wp.Z),
+        BrickColor=BrickColor.new("Dark stone grey"),
+        Material=Enum.Material.Metal, CanCollide=true })
+    local capRing = Instance.new("Part")
+    capRing.Name="CornerRing_"..i; capRing.Shape=Enum.PartType.Cylinder
+    capRing.Size=Vector3.new(0.3, BLT_W+2.2, BLT_W+2.2)
+    capRing.Anchored=true; capRing.CanCollide=false; capRing.CastShadow=false
+    capRing.Material=Enum.Material.Neon; capRing.Transparency=0.3
+    capRing.Color=capColors[i]
+    capRing.CFrame=CFrame.new(wp.X, BLT_H+0.35, wp.Z)*CFrame.Angles(0,0,math.rad(90))
+    capRing.Parent=workspace
+    local cl=Instance.new("PointLight"); cl.Color=capColors[i]
+    cl.Brightness=5; cl.Range=24; cl.Parent=capRing
 end
 
 -- Trilhos neon nas bordas da esteira
@@ -351,6 +380,103 @@ for _, pl2 in ipairs({
         Material=Enum.Material.SmoothPlastic, CanCollide=true })
 end
 
+-- Linhas neon de zona dos jogadores (N/S/L/O)
+local zoneMarkers = {
+    { px=midX,   pz=minZ-7, sx=lenX-4, sz=0.3, color=Color3.fromRGB(255,80,80),  label="⬇ ZONA SUL ⬇"   },
+    { px=midX,   pz=maxZ+7, sx=lenX-4, sz=0.3, color=Color3.fromRGB(80,160,255), label="⬆ ZONA NORTE ⬆" },
+    { px=maxX+7, pz=midZ,   sx=0.3, sz=lenZ-4, color=Color3.fromRGB(255,200,50), label="ZONA LESTE"       },
+    { px=minX-7, pz=midZ,   sx=0.3, sz=lenZ-4, color=Color3.fromRGB(80,255,150), label="ZONA OESTE"       },
+}
+for i, zm in ipairs(zoneMarkers) do
+    local ml = makePart({ Name="ZoneMarker_"..i,
+        Size=Vector3.new(zm.sx, 0.15, zm.sz),
+        Position=Vector3.new(zm.px, 0.58, zm.pz),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false, Transparency=0.15 })
+    ml.Color=zm.color
+    local mpl=Instance.new("PointLight"); mpl.Color=zm.color; mpl.Brightness=1; mpl.Range=9; mpl.Parent=ml
+end
+
+-- =====================================================
+--  HOLOFOTES DE ESTÁDIO (iluminação profissional)
+-- =====================================================
+for i, pos in ipairs({
+    Vector3.new( maxX+11, 0,  maxZ+11),  -- NE
+    Vector3.new(-maxX-11, 0,  maxZ+11),  -- NW
+    Vector3.new( maxX+11, 0, -(maxZ+11)),-- SE
+    Vector3.new(-maxX-11, 0, -(maxZ+11)),-- SW
+}) do
+    makePart({ Name="StadiumPole_"..i, Size=Vector3.new(1.2,28,1.2),
+        Position=Vector3.new(pos.X,14,pos.Z),
+        BrickColor=BrickColor.new("Medium stone grey"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=true })
+    local armZ = pos.Z > 0 and (pos.Z-3) or (pos.Z+3)
+    makePart({ Name="StadiumArm_"..i, Size=Vector3.new(0.6,0.6,6),
+        Position=Vector3.new(pos.X,29,armZ),
+        BrickColor=BrickColor.new("Dark stone grey"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    local fixZ = pos.Z > 0 and (pos.Z-6) or (pos.Z+6)
+    local fix = makePart({ Name="StadiumFixture_"..i, Size=Vector3.new(4,1.4,2.2),
+        Position=Vector3.new(pos.X,28.8,fixZ),
+        BrickColor=BrickColor.new("Really black"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    local bulb = makePart({ Name="StadiumBulb_"..i, Size=Vector3.new(3.5,0.55,2),
+        Position=Vector3.new(pos.X,28.0,fixZ),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false, Transparency=0.05 })
+    bulb.Color=Color3.fromRGB(255,250,220)
+    local spot=Instance.new("SpotLight")
+    spot.Angle=60; spot.Brightness=7; spot.Range=110
+    spot.Color=Color3.fromRGB(255,245,210); spot.Face=Enum.NormalId.Bottom
+    spot.Parent=fix
+    local bl=Instance.new("PointLight"); bl.Color=Color3.fromRGB(255,250,200)
+    bl.Brightness=3; bl.Range=18; bl.Parent=bulb
+end
+
+-- =====================================================
+--  PLACAR CENTRAL (SCOREBOARD acima da entrada sul)
+-- =====================================================
+makePart({ Name="ScoreboardPost1", Size=Vector3.new(1.2,18,1.2),
+    Position=Vector3.new(-8,9,-13),
+    BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic })
+makePart({ Name="ScoreboardPost2", Size=Vector3.new(1.2,18,1.2),
+    Position=Vector3.new( 8,9,-13),
+    BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic })
+makePart({ Name="ScoreboardCrossbar", Size=Vector3.new(17.6,0.8,0.8),
+    Position=Vector3.new(0,18.4,-13),
+    BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+local sbPanel = makePart({ Name="ScoreboardPanel", Size=Vector3.new(20,7.5,0.65),
+    Position=Vector3.new(0,22.25,-13),
+    BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+local sbGui=Instance.new("SurfaceGui"); sbGui.Face=Enum.NormalId.Front; sbGui.Parent=sbPanel
+local sbBg=Instance.new("Frame"); sbBg.Size=UDim2.new(1,0,1,0)
+sbBg.BackgroundColor3=Color3.fromRGB(4,4,18); sbBg.BorderSizePixel=0; sbBg.Parent=sbGui
+local sbT=Instance.new("TextLabel"); sbT.Size=UDim2.new(1,0,0.48,0)
+sbT.BackgroundTransparency=1; sbT.Text="🏆  BRAINROT ROUBO  🏆"
+sbT.TextColor3=Color3.fromRGB(255,215,0); sbT.TextScaled=true; sbT.Font=Enum.Font.GothamBold
+sbT.TextStrokeTransparency=0.4; sbT.Parent=sbBg
+local sbS=Instance.new("TextLabel"); sbS.Size=UDim2.new(1,0,0.30,0)
+sbS.Position=UDim2.new(0,0,0.50,0); sbS.BackgroundTransparency=1
+sbS.Text="Roube brainrots  •  Ganhe aura  •  Torne-se lendário"
+sbS.TextColor3=Color3.fromRGB(170,195,255); sbS.TextScaled=true; sbS.Font=Enum.Font.Gotham; sbS.Parent=sbBg
+local sbF=Instance.new("TextLabel"); sbF.Size=UDim2.new(1,0,0.22,0)
+sbF.Position=UDim2.new(0,0,0.80,0)
+sbF.BackgroundColor3=Color3.fromRGB(200,30,30); sbF.BackgroundTransparency=0.35
+sbF.Text="🌑  LUA DE SANGUE A CADA 25 SPAWNS  🌑"
+sbF.TextColor3=Color3.fromRGB(255,200,200); sbF.TextScaled=true; sbF.Font=Enum.Font.GothamBold; sbF.Parent=sbBg
+-- Moldura neon do placar
+for _, bd in ipairs({
+    {x=0,     y=26.3,  sx=21,  sz=0.3},
+    {x=0,     y=18.2,  sx=21,  sz=0.3},
+    {x=-10.5, y=22.25, sx=0.3, sz=8.5},
+    {x= 10.5, y=22.25, sx=0.3, sz=8.5},
+}) do
+    makePart({ Name="SbFrame", Size=Vector3.new(bd.sx,0.35,bd.sz),
+        Position=Vector3.new(bd.x, bd.y, -12.65),
+        BrickColor=BrickColor.new("Bright yellow"),
+        Material=Enum.Material.Neon, CanCollide=false, Transparency=0.2 })
+end
+
 -- =====================================================
 --  DECORAÇÃO: BIOMA EXTERNO (árvores, pedras, arbustos)
 -- =====================================================
@@ -455,6 +581,77 @@ for i, pos in ipairs({
         Position=Vector3.new(pos.X,9,pos.Z), BrickColor=BrickColor.new("Institutional white"),
         Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.1 })
     local ll = Instance.new("PointLight"); ll.Color=Color3.fromRGB(255,240,200); ll.Brightness=3; ll.Range=24; ll.Parent=lamp
+end
+
+-- =====================================================
+--  BARRACA DO VENDEDOR
+-- =====================================================
+-- Balcão de madeira
+makePart({ Name="ShopCounter", Size=Vector3.new(5.5,1.5,1.5),
+    Position=Vector3.new(0,0.75,-29.5),
+    BrickColor=BrickColor.new("Dark orange"), Material=Enum.Material.Wood })
+makePart({ Name="ShopCounterTop", Size=Vector3.new(5.7,0.22,1.7),
+    Position=Vector3.new(0,1.61,-29.5),
+    BrickColor=BrickColor.new("Forest green"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+-- Pernas do balcão
+for _, cx in ipairs({-2.3, 2.3}) do
+    makePart({ Name="CounterLeg", Size=Vector3.new(0.4,1.5,0.4),
+        Position=Vector3.new(cx,0.75,-29.2),
+        BrickColor=BrickColor.new("Brown"), Material=Enum.Material.Wood, CanCollide=false })
+    makePart({ Name="CounterLeg", Size=Vector3.new(0.4,1.5,0.4),
+        Position=Vector3.new(cx,0.75,-30.3),
+        BrickColor=BrickColor.new("Brown"), Material=Enum.Material.Wood, CanCollide=false })
+end
+-- Toldo listrado vermelho/branco
+makePart({ Name="ShopAwning", Size=Vector3.new(8,0.3,5.5),
+    Position=Vector3.new(0,8.3,-32),
+    BrickColor=BrickColor.new("Bright red"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+for ix = -3.5, 3.5, 1.4 do
+    makePart({ Name="ShopAwningStripe", Size=Vector3.new(0.65,0.38,5.6),
+        Position=Vector3.new(ix,8.45,-32),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=false })
+end
+-- Franja decorativa
+for ix = -3.8, 3.8, 0.65 do
+    makePart({ Name="ShopFringe", Size=Vector3.new(0.4,0.65,0.4),
+        Position=Vector3.new(ix,7.8,-29.5),
+        BrickColor=BrickColor.new("Bright red"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=false })
+end
+-- Placa da loja
+local shopSign = makePart({ Name="ShopSignBoard", Size=Vector3.new(7,1.7,0.3),
+    Position=Vector3.new(0,9.85,-29.7),
+    BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+makeSurfaceLabel(shopSign, "  ✦  UPGRADES & ITENS  ✦  ", Color3.fromRGB(255,215,0))
+local sLit=Instance.new("PointLight"); sLit.Color=Color3.fromRGB(255,215,0)
+sLit.Brightness=2; sLit.Range=12; sLit.Parent=shopSign
+-- Prateleira atrás do NPC
+makePart({ Name="ShopShelf", Size=Vector3.new(4.5,0.25,1.2),
+    Position=Vector3.new(0,3.8,-37.2),
+    BrickColor=BrickColor.new("Dark orange"), Material=Enum.Material.Wood, CanCollide=false })
+makePart({ Name="ShopShelfBack", Size=Vector3.new(4.5,3,0.2),
+    Position=Vector3.new(0,2.5,-37.7),
+    BrickColor=BrickColor.new("Brown"), Material=Enum.Material.Wood, CanCollide=false })
+-- Itens na prateleira (esferas coloridas neon)
+local shelfItems = {
+    Color3.fromRGB(255,60,60), Color3.fromRGB(80,200,255),
+    Color3.fromRGB(80,255,120), Color3.fromRGB(255,200,50), Color3.fromRGB(160,80,255),
+}
+for j, clr in ipairs(shelfItems) do
+    local item = makePart({ Name="ShelfItem_"..j, Shape=Enum.PartType.Ball,
+        Size=Vector3.new(0.65,0.65,0.65),
+        Position=Vector3.new(-2+(j-1)*1, 4.22, -37.2),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.1 })
+    item.Color=clr
+    local il=Instance.new("PointLight"); il.Color=clr; il.Brightness=1.5; il.Range=5; il.Parent=item
+end
+-- Dois postes que sustentam o toldo
+for _, cx in ipairs({-3.7, 3.7}) do
+    makePart({ Name="AwningPost", Size=Vector3.new(0.5,8.3,0.5),
+        Position=Vector3.new(cx,4.15,-29.5),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic })
 end
 
 -- =====================================================

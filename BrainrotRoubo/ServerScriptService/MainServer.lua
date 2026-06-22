@@ -606,6 +606,32 @@ local function buildBrainrotVisuals(part, rarity, isLua, rarColor)
             end)
         end
     end
+
+    -- Disco de aura/sombra pulsante abaixo do brainrot
+    local shadow = Instance.new("Part")
+    shadow.Name="Shadow"; shadow.Shape=Enum.PartType.Cylinder
+    shadow.Size=Vector3.new(0.22, 7, 7)
+    shadow.Anchored=true; shadow.CanCollide=false; shadow.CastShadow=false
+    shadow.Color = isLua and Color3.fromRGB(200,0,0) or rarColor
+    shadow.Material=Enum.Material.Neon; shadow.Transparency=0.65
+    shadow.CFrame=CFrame.new(part.Position)*CFrame.Angles(0,0,math.rad(90))
+    shadow.Parent=part
+
+    -- Coroa de picos para raridades God/Secret/OG
+    local rank2 = GameConfig.RARITY_RANK[rarity] or 0
+    if rank2 >= 7 or isLua then
+        local crownColor = isLua and Color3.fromRGB(255,210,0) or rarColor
+        for k = 1, 5 do
+            local spike = Instance.new("Part")
+            spike.Name="Crown"; spike.Size=Vector3.new(0.35, 2.0+(k%2)*0.5, 0.35)
+            spike.Anchored=true; spike.CanCollide=false; spike.CastShadow=false
+            spike.Color=crownColor; spike.Material=Enum.Material.Neon; spike.Transparency=0.1
+            spike.CFrame=part.CFrame*CFrame.new(0,3,0)
+            spike.Parent=part
+            local cl=Instance.new("PointLight"); cl.Color=crownColor
+            cl.Brightness=2; cl.Range=7; cl.Parent=spike
+        end
+    end
 end
 
 -- =====================================================
@@ -668,17 +694,21 @@ local function spawnBrainrot()
     addVal("StringValue","MutationName", mut.name)
     addVal("IntValue",   "MutationMult", mut.multiplier)
 
-    -- Cacheia anéis e orbs para o heartbeat global não chamar GetChildren() a cada frame
-    local meshRings = {}
-    local meshOrbs  = {}
+    -- Cacheia anéis, orbs, shadow e crown para o heartbeat não chamar GetChildren() a cada frame
+    local meshRings  = {}
+    local meshOrbs   = {}
+    local meshShadow = nil
+    local meshCrown  = {}
     for _, c in ipairs(part:GetChildren()) do
         if c:IsA("BasePart") then
-            if c.Name:sub(1,4) == "Ring" then table.insert(meshRings, c)
-            elseif c.Name:sub(1,3) == "Orb" then table.insert(meshOrbs, c)
+            if     c.Name:sub(1,4) == "Ring"   then table.insert(meshRings, c)
+            elseif c.Name:sub(1,3) == "Orb"    then table.insert(meshOrbs, c)
+            elseif c.Name       == "Shadow"     then meshShadow = c
+            elseif c.Name       == "Crown"      then table.insert(meshCrown, c)
             end
         end
     end
-    ConveyorBrainrots[part] = { wpIdx=1, wpProg=0, t=0, rings=meshRings, orbs=meshOrbs }
+    ConveyorBrainrots[part] = { wpIdx=1, wpProg=0, t=0, rings=meshRings, orbs=meshOrbs, shadow=meshShadow, crown=meshCrown }
 
     -- Anúncios globais
     if isLua then
@@ -759,6 +789,28 @@ RunService.Heartbeat:Connect(function(dt)
                     py + math.sin(data.t * 2.2 + i) * 0.45,
                     pz + math.sin(angle) * radius
                 )
+            end
+
+            -- Disco de sombra pulsante
+            if data.shadow and data.shadow.Parent then
+                local pulse = 1 + math.sin(data.t * 2.5) * 0.18
+                data.shadow.Size = Vector3.new(0.22, 7*pulse, 7*pulse)
+                data.shadow.CFrame = CFrame.new(px, py-2.2, pz)*CFrame.Angles(0, data.t*0.4, math.rad(90))
+                data.shadow.Transparency = 0.58 + math.sin(data.t*2.5)*0.1
+            end
+
+            -- Coroa orbitando acima
+            local crownN = #data.crown
+            if crownN > 0 then
+                for k, spike in ipairs(data.crown) do
+                    local ang = data.t * 1.1 + (k-1)*(math.pi*2/crownN)
+                    local r   = 2.0
+                    spike.CFrame = CFrame.new(
+                        px + math.cos(ang)*r,
+                        py + 2.2 + math.sin(data.t*2+k)*0.3,
+                        pz + math.sin(ang)*r
+                    ) * CFrame.Angles(data.t*1.5, ang, 0)
+                end
             end
         end
     end

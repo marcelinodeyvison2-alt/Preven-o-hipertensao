@@ -12,42 +12,75 @@ GameConfig.BRAINROT_TYPES = {
     { name = "Bombardiro Crocodilo",  rarity = "Comum",    baseAura = 15  },
     { name = "Brr Brr Patapim",       rarity = "Comum",    baseAura = 12  },
     { name = "Bananini Pepino",       rarity = "Comum",    baseAura = 8   },
+    { name = "Patata Tralala",        rarity = "Comum",    baseAura = 9   },
+    { name = "Coccodrillo Saltimbanco", rarity = "Comum",  baseAura = 11  },
+    { name = "Pollo Fritto Magnifico",  rarity = "Comum",  baseAura = 13  },
+    { name = "Vermicelli Papapero",   rarity = "Comum",    baseAura = 10  },
+    { name = "Gatto Matto Ballerino", rarity = "Comum",    baseAura = 7   },
+    { name = "Topolino Piccante",     rarity = "Comum",    baseAura = 14  },
 
     -- INCOMUM
     { name = "Tung Tung Sahur",       rarity = "Incomum",  baseAura = 60  },
     { name = "Bombombini Gusini",     rarity = "Incomum",  baseAura = 80  },
     { name = "Chimpanzini Bananini",  rarity = "Incomum",  baseAura = 75  },
+    { name = "Gorilla Bassotto",      rarity = "Incomum",  baseAura = 70  },
+    { name = "Elefantino Volante",    rarity = "Incomum",  baseAura = 65  },
+    { name = "Tarantella Moscerino",  rarity = "Incomum",  baseAura = 90  },
+    { name = "Papavero Girandola",    rarity = "Incomum",  baseAura = 85  },
 
     -- RARO
     { name = "Lirili Larila",         rarity = "Raro",     baseAura = 300 },
     { name = "Cappuccino Assassino",  rarity = "Raro",     baseAura = 400 },
     { name = "Pistolini Penguini",    rarity = "Raro",     baseAura = 350 },
+    { name = "Falcone Metallico",     rarity = "Raro",     baseAura = 380 },
+    { name = "Serpentino Neon",       rarity = "Raro",     baseAura = 420 },
+    { name = "Orso Cosmico",          rarity = "Raro",     baseAura = 340 },
+    { name = "Lupo Ultravioletto",    rarity = "Raro",     baseAura = 460 },
+    { name = "Aquilone Elettrico",    rarity = "Raro",     baseAura = 395 },
 
     -- ÉPICO
     { name = "Trippi Troppi",         rarity = "Epico",    baseAura = 1500  },
     { name = "Glorbo Fruttodrillo",   rarity = "Epico",    baseAura = 2000  },
     { name = "Frigo Camello",         rarity = "Epico",    baseAura = 1800  },
+    { name = "Tungussini Bababoi",    rarity = "Epico",    baseAura = 2200  },
+    { name = "Aquila Dimensionale",   rarity = "Epico",    baseAura = 1700  },
+    { name = "Rinoceronte Elettrico", rarity = "Epico",    baseAura = 2500  },
+    { name = "Pesce Abissale Folle",  rarity = "Epico",    baseAura = 1950  },
 
     -- LENDÁRIO
     { name = "La Vacca Saturno",      rarity = "Lendario", baseAura = 8000  },
     { name = "Octopussini Tentacolo", rarity = "Lendario", baseAura = 12000 },
+    { name = "Squalo del Multiverso",  rarity = "Lendario", baseAura = 9000  },
+    { name = "Farfalla Supernova",     rarity = "Lendario", baseAura = 15000 },
+    { name = "Tigre Celestiale",       rarity = "Lendario", baseAura = 11000 },
+    { name = "Dragone di Ghiaccio",    rarity = "Lendario", baseAura = 13500 },
 
     -- MÍTICO
     { name = "Il Cacciatore Cosmico", rarity = "Mitico",   baseAura = 50000 },
-    { name = "Banana Divina Eterna",  rarity = "Mitico",   baseAura = 75000 },
+    { name = "Banana Divina Eterna",  rarity = "Mitico",   baseAura = 75000  },
+    { name = "Il Kraken Eterno",      rarity = "Mitico",   baseAura = 60000  },
+    { name = "Fenice del Vuoto",      rarity = "Mitico",   baseAura = 90000  },
+    { name = "Mostro del Plasma",     rarity = "Mitico",   baseAura = 80000  },
 
     -- GOD
     { name = "Deus Supremo Tralala",    rarity = "God",    baseAura = 500000   },
     { name = "Zeus Brainroticus",        rarity = "God",    baseAura = 750000   },
     { name = "Divino Crocodilo Eterno",  rarity = "God",    baseAura = 1000000  },
+    { name = "Apollo Brainroticus",      rarity = "God",    baseAura = 900000   },
+    { name = "Il Grande Omnipotente",    rarity = "God",    baseAura = 1200000  },
+    { name = "Helios Ultramentale",      rarity = "God",    baseAura = 850000   },
 
     -- SECRET
     { name = "???",                    rarity = "Secret",   baseAura = 5000000  },
     { name = "Il Segreto Proibito",    rarity = "Secret",   baseAura = 8000000  },
     { name = "Ombra Senza Nome",       rarity = "Secret",   baseAura = 12000000 },
+    { name = "La Verità Nascosta",     rarity = "Secret",   baseAura = 10000000 },
+    { name = "Il Codice Proibito",     rarity = "Secret",   baseAura = 15000000 },
+    { name = "L'Entità Senza Forma",   rarity = "Secret",   baseAura = 20000000 },
 
     -- OG (a mais rara do jogo)
     { name = "O ORIGINAL",             rarity = "OG",       baseAura = 100000000 },
+    { name = "IL VERO ORIGINALE",      rarity = "OG",       baseAura = 200000000 },
 }
 
 -- =====================================================
