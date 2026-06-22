@@ -70,6 +70,9 @@ local LuckySpinRE       = makeRE("LuckySpinAvailable")
 local SpinResultRE      = makeRE("SpinResult")
 local ClaimSpinEvent    = makeRE("ClaimSpin")
 local IdleAuraRE        = makeRE("IdleAuraGain")
+-- Trail skin remotes
+local ChangeTrailSkinEvent = makeRE("ChangeTrailSkin")
+local TrailSkinUpdateRE    = makeRE("TrailSkinUpdate")
 
 -- =====================================================
 --  MUNDO
@@ -117,6 +120,7 @@ local function defaultData()
         lastLoginDay  = 0,
         weeklyMissionData = nil,
         lastSaveTime  = 0,
+        equippedTrailSkin = "default",
     }
 end
 
@@ -410,6 +414,7 @@ end
 --  VIP / ADMIN
 -- =====================================================
 local function checkVIP(player)
+    if GameConfig.VIP_GAMEPASS_ID == 0 then return false end
     local ok, has = pcall(function()
         return MarketplaceService:UserOwnsGamePassAsync(player.UserId, GameConfig.VIP_GAMEPASS_ID)
     end)
@@ -462,6 +467,7 @@ local function loadData(player)
     if not data.nextItemId       then data.nextItemId       = 0   end
     if not data.loginStreak      then data.loginStreak      = 0   end
     if not data.lastLoginDay     then data.lastLoginDay     = 0   end
+    if not data.equippedTrailSkin then data.equippedTrailSkin = "default" end
     refreshMissions(data)
     refreshWeeklyMissions(data)
     -- Login streak
@@ -535,6 +541,8 @@ local function loadData(player)
     AchievementRE:FireClient(player, achList)
     EventUpdateRE:FireClient(player, GameConfig.CURRENT_EVENT)
     LoginStreakRE:FireClient(player, data.loginStreak, streakReward)
+    -- Envia a skin de trilha salva ao cliente
+    TrailSkinUpdateRE:FireClient(player, data.equippedTrailSkin or "default")
 end
 
 local function saveData(player)
@@ -973,7 +981,7 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
 
     -- Lucky Spin tracking
     local sc = (PlayerSpinCount[uid] or 0) + 1
-    if sc >= (GameConfig.LUCKY_SPIN_INTERVAL or 20) then
+    if sc >= (GameConfig.LUCKY_SPIN_INTERVAL or 35) then
         PlayerSpinCount[uid] = 0
         LuckySpinRE:FireClient(player)
     else
@@ -1440,10 +1448,58 @@ end)
 -- =====================================================
 --  TUTORIAL COMPLETO
 -- =====================================================
+-- TutorialDone: marca tutorial como visto
 local TutorialDoneEvent = makeRE("TutorialDone")
 TutorialDoneEvent.OnServerEvent:Connect(function(player)
     local data=PlayerData[player.UserId]; if not data then return end
     data.hasSeenTutorial = true
+end)
+
+-- =====================================================
+--  EVENTO: TROCAR SKIN DE TRILHA
+-- =====================================================
+ChangeTrailSkinEvent.OnServerEvent:Connect(function(player, skinId)
+    local data = PlayerData[player.UserId]; if not data then return end
+    -- Verifica se skinId existe em TRAIL_SKINS
+    local skin = nil
+    for _, s in ipairs(GameConfig.TRAIL_SKINS) do
+        if s.id == skinId then skin = s; break end
+    end
+    if not skin then return end
+    -- Verifica prestígio suficiente
+    if (data.prestige or 0) < skin.prestigeReq then
+        NotifyRE:FireClient(player,
+            string.format("Precisa de Prestígio %d para esta skin!", skin.prestigeReq),
+            Color3.fromRGB(255, 80, 80))
+        return
+    end
+    data.equippedTrailSkin = skinId
+    TrailSkinUpdateRE:FireClient(player, skinId)
+    NotifyRE:FireClient(player, "🎨 Skin de trilha equipada: " .. skin.name, Color3.fromRGB(150, 200, 255))
+end)
+
+-- =====================================================
+--  EVENTO AUTOMÁTICO DE FIM DE SEMANA
+-- =====================================================
+task.spawn(function()
+    local weekendActive = false
+    while true do
+        task.wait(60)
+        local t = os.date("!*t")
+        -- wday: 1=domingo, 6=sexta, 7=sábado
+        local wday = t.wday
+        local hour  = t.hour
+        local isWeekend = (wday == 6 and hour >= 18) or (wday == 7) or (wday == 1)
+        if isWeekend and not weekendActive then
+            weekendActive = true
+            GameConfig.CURRENT_EVENT = GameConfig.WEEKEND_EVENT
+            EventUpdateRE:FireAllClients(GameConfig.CURRENT_EVENT)
+        elseif not isWeekend and weekendActive then
+            weekendActive = false
+            GameConfig.CURRENT_EVENT = nil
+            EventUpdateRE:FireAllClients(nil)
+        end
+    end
 end)
 
 -- =====================================================
@@ -1501,10 +1557,15 @@ task.spawn(function()
     end
 end)
 
--- Loop de spawn da esteira
+-- Loop de spawn da esteira (intervalo dinâmico)
 task.spawn(function()
     while true do
-        task.wait(GameConfig.SPAWN_INTERVAL)
+        local playerCount = #Players:GetPlayers()
+        local dynInterval = math.max(
+            GameConfig.SPAWN_INTERVAL_MIN or 1.2,
+            (GameConfig.SPAWN_INTERVAL_BASE or 3.0) - (playerCount - 1) * (GameConfig.SPAWN_INTERVAL_SCALE or 0.15)
+        )
+        task.wait(dynInterval)
         spawnBrainrot()
     end
 end)
