@@ -1,0 +1,54 @@
+{
+  "name": "CaptureUmBrainrot",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Modules": {
+        "$className": "Folder",
+        "BrainrotConfig": {
+          "$path": "ReplicatedStorage/Modules/BrainrotConfig.lua"
+        },
+        "GameConfig": {
+          "$path": "ReplicatedStorage/Modules/GameConfig.lua"
+        }
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Setup": {
+        "$path": "ServerScriptService/Setup.server.lua"
+      },
+      "BrainrotSpawner": {
+        "$path": "ServerScriptService/BrainrotSpawner.server.lua"
+      },
+      "PlayerManager": {
+        "$path": "ServerScriptService/PlayerManager.server.lua"
+      },
+      "RankingManager": {
+        "$path": "ServerScriptService/RankingManager.server.lua"
+      }
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "MainClient": {
+          "$path": "StarterPlayerScripts/MainClient.client.lua"
+        },
+        "Modules": {
+          "$className": "Folder",
+          "GUIManager": {
+            "$path": "StarterPlayerScripts/Modules/GUIManager.lua"
+          },
+          "EffectsManager": {
+            "$path": "StarterPlayerScripts/Modules/EffectsManager.lua"
+          }
+        }
+      }
+    }
+  }
+}
