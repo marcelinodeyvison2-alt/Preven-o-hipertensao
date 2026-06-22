@@ -56,6 +56,8 @@ local SpinResultRE       = RemoteFolder:WaitForChild("SpinResult")
 local ClaimSpinEvent     = RemoteFolder:WaitForChild("ClaimSpin")
 local IdleAuraRE         = RemoteFolder:WaitForChild("IdleAuraGain")
 local RareFlashRE        = RemoteFolder:WaitForChild("RareSpawnFlash")
+local ChangeTrailSkinEvent = RemoteFolder:WaitForChild("ChangeTrailSkin")
+local TrailSkinUpdateRE    = RemoteFolder:WaitForChild("TrailSkinUpdate")
 
 -- =====================================================
 --  HELPERS
@@ -147,6 +149,107 @@ local function setSfxVol(v)
     sfxAchiev.Volume  = v
     sfxPrestige.Volume= v * 1.5
     for _, s in pairs(sfxPerRarity) do s.Volume = v * 0.8 end
+end
+
+-- =====================================================
+--  MÚSICA DINÂMICA POR RARIDADE
+-- =====================================================
+local MUSIC_IDS = {
+    Comum    = 1837849285, Incomum = 1837849285, Raro    = 507771019,
+    Epico    = 190840006,  Lendario = 743521451, Mitico  = 145556083,
+    God      = 507771019,  Secret   = 278062209, OG      = 1369158552,
+}
+local MUSIC_DURATION = {
+    Comum=0, Incomum=0, Raro=15, Epico=20, Lendario=30,
+    Mitico=40, God=60, Secret=90, OG=120,
+}
+
+local BgMusic = Instance.new("Sound")
+BgMusic.Name     = "BgMusic"
+BgMusic.SoundId  = "rbxassetid://1837849285"
+BgMusic.Volume   = 0.35
+BgMusic.Looped   = true
+BgMusic.Parent   = SoundService
+pcall(function() BgMusic:Play() end)
+
+local function playRarityMusic(rarity)
+    if rarity == "Comum" or rarity == "Incomum" then return end
+    local id  = MUSIC_IDS[rarity]
+    local dur = MUSIC_DURATION[rarity]
+    if not id or not dur then return end
+    local rarSound = Instance.new("Sound")
+    rarSound.SoundId = "rbxassetid://" .. tostring(id)
+    rarSound.Volume  = 0.6
+    rarSound.Looped  = false
+    rarSound.Parent  = SoundService
+    pcall(function() rarSound:Play() end)
+    TweenService:Create(BgMusic, TweenInfo.new(1), {Volume = 0.05}):Play()
+    task.delay(dur, function()
+        TweenService:Create(BgMusic, TweenInfo.new(2), {Volume = 0.35}):Play()
+        task.delay(2.1, function() pcall(function() rarSound:Destroy() end) end)
+    end)
+end
+
+-- =====================================================
+--  EFEITO DE PARTÍCULAS AO ROUBAR
+-- =====================================================
+local function spawnStealEffect(worldPos, rarityColor)
+    local part = Instance.new("Part")
+    part.Size          = Vector3.new(0, 0, 0)
+    part.CFrame        = CFrame.new(worldPos)
+    part.Anchored      = true
+    part.CanCollide    = false
+    part.Transparency  = 1
+    part.Parent        = workspace
+
+    local pe = Instance.new("ParticleEmitter")
+    pe.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0,   rarityColor or Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255,255,255)),
+        ColorSequenceKeypoint.new(1,   rarityColor or Color3.fromRGB(255,200,200)),
+    })
+    pe.Size = NumberSequence.new({
+        NumberSequenceKeypoint.new(0,   0.4),
+        NumberSequenceKeypoint.new(0.5, 0.25),
+        NumberSequenceKeypoint.new(1,   0),
+    })
+    pe.LightEmission  = 1
+    pe.Rate           = 0
+    pe.SpreadAngle    = Vector2.new(180, 180)
+    pe.Lifetime       = NumberRange.new(0.4, 0.8)
+    pe.Speed          = NumberRange.new(8, 20)
+    pe.Parent         = part
+    pe:Emit(40)
+
+    task.delay(1.2, function() pcall(function() part:Destroy() end) end)
+end
+
+-- =====================================================
+--  CINEMÁTICA DE REBIRTH
+-- =====================================================
+local function playRebirthCinematic(callback)
+    local flash = makeFrame(ScreenGui, {
+        Size                = UDim2.new(1,0,1,0),
+        BackgroundColor3    = Color3.fromRGB(255,255,255),
+        BackgroundTransparency = 1,
+        ZIndex              = 100,
+    })
+    TweenService:Create(flash, TweenInfo.new(0.5), {BackgroundTransparency = 0}):Play()
+
+    local cam = workspace.CurrentCamera
+    local originalCF = cam.CFrame
+    cam.CameraType = Enum.CameraType.Scriptable
+    local targetCF = originalCF + Vector3.new(0, 80, 0)
+    TweenService:Create(cam, TweenInfo.new(1.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {CFrame = targetCF}):Play()
+
+    task.delay(1.8, function()
+        TweenService:Create(flash, TweenInfo.new(0.8), {BackgroundTransparency = 1}):Play()
+        cam.CameraType = Enum.CameraType.Custom
+        task.delay(0.8, function()
+            flash:Destroy()
+            if callback then callback() end
+        end)
+    end)
 end
 
 -- =====================================================
@@ -539,6 +642,7 @@ local BPBtn       = makeBarBtn(468,   "🎖 PASSE",    Color3.fromRGB(180,255,22
 local LBBtn       = makeBarBtn(544,   "🌍 RANK",     Color3.fromRGB(255,180,120), Color3.fromRGB(200,120,60))
 local SettingsBtn = makeBarBtn(620,   "⚙ VOL",      Color3.fromRGB(180,180,180), Color3.fromRGB(120,120,120))
 local TeamBtn     = makeBarBtn(696,   "🤝 TIME",     Color3.fromRGB(100,200,255), Color3.fromRGB(60,140,200))
+local TrailBtn    = makeBarBtn(772,   "🎨 TRILHA",   Color3.fromRGB(200,150,255), Color3.fromRGB(140,80,220))
 
 -- =====================================================
 --  PANEL BUILDER HELPERS
@@ -1613,6 +1717,97 @@ TeamInviteBtn.Activated:Connect(function()
 end)
 
 -- =====================================================
+--  TRAIL SKIN PANEL
+-- =====================================================
+local TrailPanel, CloseTrailBtn = makePanel("🎨  SKINS DE TRILHA", Color3.fromRGB(200,150,255))
+TrailPanel.Size     = UDim2.new(0,520,0,460)
+TrailPanel.Position = UDim2.new(0.5,-260,0.5,-230)
+
+local TrailScroll = makeScroll(TrailPanel, {
+    Size=UDim2.new(1,-12,1,-54), Position=UDim2.new(0,6,0,54),
+    BackgroundTransparency=1, BorderSizePixel=0, ScrollBarThickness=5,
+    ScrollBarImageColor3=Color3.fromRGB(200,150,255), CanvasSize=UDim2.new(0,0,0,0), ZIndex=9,
+})
+local trailLayout = listLayout(TrailScroll, 5)
+local trailRows = {}
+local currentEquippedSkin = "default"
+
+local function buildTrailUI()
+    for _, r in pairs(trailRows) do r:Destroy() end; trailRows = {}
+    if not GameConfig.TRAIL_SKINS then return end
+    local lo = 0
+    for _, skin in ipairs(GameConfig.TRAIL_SKINS) do
+        lo = lo + 1
+        local isEquipped  = (currentEquippedSkin == skin.id)
+        local canEquip    = (currentData.prestige or 0) >= (skin.prestigeReq or 0)
+        local row = makeFrame(TrailScroll, {
+            Size=UDim2.new(1,0,0,62), LayoutOrder=lo, BorderSizePixel=0,
+            BackgroundColor3=isEquipped and Color3.fromRGB(30,15,50) or Color3.fromRGB(15,15,22),
+            BackgroundTransparency=0.1, ZIndex=10,
+        })
+        round(row, 10)
+        stroke(row,
+            isEquipped and Color3.fromRGB(220,100,255) or (canEquip and Color3.fromRGB(140,80,220) or Color3.fromRGB(60,60,80)),
+            isEquipped and 2.5 or 1.2)
+
+        -- Color preview dots
+        if skin.colors then
+            for ci, col in ipairs(skin.colors) do
+                local dot = makeFrame(row, {
+                    Size=UDim2.new(0,14,0,14), Position=UDim2.new(0, 8 + (ci-1)*18, 0.5, -7),
+                    BackgroundColor3=col, BorderSizePixel=0, ZIndex=11,
+                })
+                round(dot, 7)
+            end
+        end
+
+        local nameXOffset = skin.colors and (#skin.colors * 18 + 14) or 8
+        makeTL(row, {
+            Size=UDim2.new(0.42,0,0.52,0), Position=UDim2.new(0, nameXOffset, 0, 4),
+            BackgroundTransparency=1, Text=skin.name,
+            TextColor3=Color3.fromRGB(230,200,255), TextScaled=true, Font=Enum.Font.GothamBold,
+            TextXAlignment=Enum.TextXAlignment.Left, ZIndex=11,
+        })
+        makeTL(row, {
+            Size=UDim2.new(0.42,0,0.38,0), Position=UDim2.new(0, nameXOffset, 0.52, 0),
+            BackgroundTransparency=1,
+            Text=skin.prestigeReq > 0 and ("Prestígio "..skin.prestigeReq.." necessário") or "Sem requisito",
+            TextColor3=canEquip and Color3.fromRGB(140,220,140) or Color3.fromRGB(200,100,100),
+            TextScaled=true, Font=Enum.Font.Gotham,
+            TextXAlignment=Enum.TextXAlignment.Left, ZIndex=11,
+        })
+        local equipBtn = makeTB(row, {
+            Size=UDim2.new(0.25,0,0.68,0), Position=UDim2.new(0.73,0,0.16,0),
+            BackgroundColor3=isEquipped and Color3.fromRGB(70,20,100) or (canEquip and Color3.fromRGB(50,20,80) or Color3.fromRGB(30,30,30)),
+            BorderSizePixel=0,
+            Text=isEquipped and "✓ Ativo" or (canEquip and "Equipar" or "Bloqueado"),
+            TextColor3=isEquipped and Color3.fromRGB(220,150,255) or (canEquip and Color3.fromRGB(200,170,240) or Color3.fromRGB(80,80,80)),
+            TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=11,
+        })
+        round(equipBtn, 8)
+        if canEquip and not isEquipped then
+            local capturedId = skin.id
+            equipBtn.Activated:Connect(function()
+                ChangeTrailSkinEvent:FireServer(capturedId)
+            end)
+        end
+        table.insert(trailRows, row)
+    end
+    TrailScroll.CanvasSize = UDim2.new(0,0,0,trailLayout.AbsoluteContentSize.Y+8)
+end
+
+CloseTrailBtn.Activated:Connect(function() TrailPanel.Visible = false end)
+TrailBtn.Activated:Connect(function()
+    TrailPanel.Visible = not TrailPanel.Visible
+    if TrailPanel.Visible then buildTrailUI() end
+end)
+
+TrailSkinUpdateRE.OnClientEvent:Connect(function(skinId)
+    currentEquippedSkin = skinId or "default"
+    if TrailPanel.Visible then buildTrailUI() end
+end)
+
+-- =====================================================
 --  CAMERA SHAKE
 -- =====================================================
 local function cameraShake(duration, magnitude)
@@ -1683,10 +1878,15 @@ end)
 UpdateAuraRE.OnClientEvent:Connect(function(payload)
     for k, v in pairs(payload) do currentData[k] = v end
     if currentData.rebirths > lastRebirths then
-        pcall(function() sfxRebirth:Play() end)
-        showRebirthPopup(currentData.rebirths, currentData.multiplier, currentData.auraCap)
-        cameraShake(0.8, 0.3)
+        local capturedRB   = currentData.rebirths
+        local capturedMult = currentData.multiplier
+        local capturedCap  = currentData.auraCap
         lastRebirths = currentData.rebirths
+        playRebirthCinematic(function()
+            pcall(function() sfxRebirth:Play() end)
+            showRebirthPopup(capturedRB, capturedMult, capturedCap)
+            cameraShake(0.8, 0.3)
+        end)
     end
     if (currentData.prestige or 0) > lastPrestige then
         pcall(function() sfxPrestige:Play() end)
@@ -2188,7 +2388,14 @@ end
 local function doSteal()
     if nearestBrainrot and nearestBrainrot.Parent and stealCooldownTimer <= 0 then
         stealCooldownTimer = STEAL_COOLDOWN_DURATION
+        -- Capture info before FireServer (part may be destroyed server-side)
+        local stealPos    = nearestBrainrot.Position
+        local stealMeta   = nearestBrainrot:FindFirstChild("Meta")
+        local stealRarity = stealMeta and stealMeta:FindFirstChild("Rarity") and stealMeta.Rarity.Value or "Comum"
+        local rarColor    = GameConfig.RARITY_COLORS and GameConfig.RARITY_COLORS[stealRarity] or Color3.fromRGB(255,255,255)
         StealEvent:FireServer(nearestBrainrot)
+        spawnStealEffect(stealPos, rarColor)
+        playRarityMusic(stealRarity)
     end
 end
 
