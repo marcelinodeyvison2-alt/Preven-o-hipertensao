@@ -37,14 +37,24 @@ end
 -- =====================================================
 --  CHÃO E AMBIENTE
 -- =====================================================
--- Chão principal
+-- Chão externo (grama ao redor da arena)
 makePart({
-    Name             = "Ground",
-    Size             = Vector3.new(280, 2, 280),
-    Position         = Vector3.new(0, -1, 0),
-    BrickColor       = BrickColor.new("Bright green"),
-    Material         = Enum.Material.Grass,
-    CanCollide       = true,
+    Name="Ground",
+    Size=Vector3.new(280, 2, 280),
+    Position=Vector3.new(0, -1, 0),
+    BrickColor=BrickColor.new("Bright green"),
+    Material=Enum.Material.Grass,
+    CanCollide=true,
+})
+
+-- Piso da arena (escuro, contraste estilo Roubei um Brainrot)
+makePart({
+    Name="ArenaFloor",
+    Size=Vector3.new(120, 0.5, 90),
+    Position=Vector3.new(0, -0.26, 0),
+    BrickColor=BrickColor.new("Dark stone grey"),
+    Material=Enum.Material.SmoothPlastic,
+    CanCollide=true,
 })
 
 -- Bordas invisíveis (colisão)
@@ -63,15 +73,30 @@ for _, data in ipairs({
     wall.Parent                 = workspace
 end
 
--- Plataforma central (spawn dos jogadores)
+-- Plataforma de spawn (centro do corredor interno da esteira)
 local center = makePart({
     Name      = "SpawnPlatform",
-    Size      = Vector3.new(22, 1, 22),
-    Position  = Vector3.new(0, 0.5, 0),
+    Size      = Vector3.new(18, 0.5, 12),
+    Position  = Vector3.new(0, 0.25, 0),
     BrickColor = BrickColor.new("Bright yellow"),
     Material   = Enum.Material.SmoothPlastic,
 })
-makeSurfaceLabel(center, "SPAWN", Color3.fromRGB(20, 20, 20))
+makeSurfaceLabel(center, "✦ SPAWN ✦", Color3.fromRGB(10, 10, 10))
+
+-- 4 pilares do spawn (marcadores visuais nos cantos)
+for _, cp in ipairs({
+    Vector3.new(-9,  0, -6), Vector3.new( 9,  0, -6),
+    Vector3.new(-9,  0,  6), Vector3.new( 9,  0,  6),
+}) do
+    local pole = makePart({
+        Name="SpawnPole", Size=Vector3.new(0.5, 4, 0.5),
+        Position=Vector3.new(cp.X, 2, cp.Z),
+        BrickColor=BrickColor.new("Bright yellow"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.3,
+    })
+    local pl=Instance.new("PointLight"); pl.Color=Color3.fromRGB(255,230,0)
+    pl.Brightness=2; pl.Range=10; pl.Parent=pole
+end
 
 -- Letreiro central
 local sign = makePart({
@@ -104,196 +129,226 @@ addSignLabel(0.5,  0.3, "Roube brainrots → ganhe AURA", Color3.fromRGB(200, 20
 addSignLabel(0.8,  0.2, "Rebirth para ficar mais forte!", Color3.fromRGB(120, 220, 120))
 
 -- =====================================================
---  BASES
+--  ESTEIRA CENTRAL (CONVEYOR BELT — estilo Roubei um Brainrot)
 -- =====================================================
--- Cores de anel por zona
-local outerRingColor = BrickColor.new("Dark stone grey")
-local innerRingColor = BrickColor.new("Medium stone grey")
+local WPS    = GameConfig.CONVEYOR_WAYPOINTS   -- 4 waypoints em loop retangular
+local BLT_H  = 1.5    -- altura do piso da esteira
+local BLT_W  = 4.5    -- largura de cada faixa
+local BLT_Y  = BLT_H / 2
+local BLT_CLR = BrickColor.new("Deep orange")
+local BLT_MAT = Enum.Material.SmoothPlastic
 
-for i, pos in ipairs(GameConfig.BASE_POSITIONS) do
-    local isInner = (i > 8)
-    local baseName = GameConfig.BASE_NAMES[i] or ("Base " .. i)
+-- Limites do retângulo (extraídos dos waypoints)
+local minX = WPS[4].X   -- -40
+local maxX = WPS[2].X   --  40
+local minZ = WPS[1].Z   -- -22
+local maxZ = WPS[3].Z   --  22
+local midX = (minX + maxX) / 2   --  0
+local midZ = (minZ + maxZ) / 2   --  0
+local lenX  = maxX - minX        --  80
+local lenZ  = maxZ - minZ        --  44
 
-    -- Plataforma da base (cilindro achatado)
-    local platform = makePart({
-        Name      = "Base_" .. i,
-        Shape     = Enum.PartType.Cylinder,
-        Size      = Vector3.new(1.2, isInner and 10 or 12, isInner and 10 or 12),
-        -- CFrame rotacionado para o cilindro ficar deitado (chão)
-        BrickColor = isInner and innerRingColor or outerRingColor,
-        Material   = Enum.Material.SmoothPlastic,
-        CastShadow = true,
-        CanCollide = true,
-    })
-    platform.CFrame = CFrame.new(pos.X, pos.Y - 0.6, pos.Z)
-                    * CFrame.Angles(0, 0, math.rad(90))
+-- Seções horizontais: inclui margem lateral para cobrir os cantos
+local beltSouth = makePart({ Name="ConveyorBelt_S",
+    Size=Vector3.new(lenX + BLT_W, BLT_H, BLT_W),
+    Position=Vector3.new(midX, BLT_Y, minZ),
+    BrickColor=BLT_CLR, Material=BLT_MAT, CanCollide=true })
 
-    -- Anel decorativo por cima
-    local ring = makePart({
-        Name      = "Ring_" .. i,
-        Shape     = Enum.PartType.Cylinder,
-        Size      = Vector3.new(0.3, isInner and 11 or 13, isInner and 11 or 13),
-        BrickColor = BrickColor.new("Institutional white"),
-        Material   = Enum.Material.Neon,
-        CanCollide = false,
-        CastShadow = false,
-    })
-    ring.CFrame = CFrame.new(pos.X, pos.Y + 0.16, pos.Z)
-               * CFrame.Angles(0, 0, math.rad(90))
+local beltNorth = makePart({ Name="ConveyorBelt_N",
+    Size=Vector3.new(lenX + BLT_W, BLT_H, BLT_W),
+    Position=Vector3.new(midX, BLT_Y, maxZ),
+    BrickColor=BLT_CLR, Material=BLT_MAT, CanCollide=true })
 
-    -- Indicador luminoso (começa cinza, muda com o brainrot)
-    local indicator = Instance.new("Part")
-    indicator.Name       = "Indicator"
-    indicator.Shape      = Enum.PartType.Ball
-    indicator.Size       = Vector3.new(1.5, 1.5, 1.5)
-    indicator.Position   = Vector3.new(pos.X, pos.Y + 1.2, pos.Z)
-    indicator.Anchored   = true
-    indicator.CanCollide = false
-    indicator.Color      = Color3.fromRGB(60, 60, 80)
-    indicator.Material   = Enum.Material.Neon
-    indicator.CastShadow = false
-    indicator.Parent     = platform   -- filho da plataforma para o server achar
+-- Seções verticais: comprimento sem sobrepor os cantos das seções horizontais
+local beltEast = makePart({ Name="ConveyorBelt_E",
+    Size=Vector3.new(BLT_W, BLT_H, lenZ - BLT_W),
+    Position=Vector3.new(maxX, BLT_Y, midZ),
+    BrickColor=BLT_CLR, Material=BLT_MAT, CanCollide=true })
 
-    local indLight = Instance.new("PointLight")
-    indLight.Color      = Color3.fromRGB(60, 60, 80)
-    indLight.Brightness = 2
-    indLight.Range      = 10
-    indLight.Parent     = indicator
+local beltWest = makePart({ Name="ConveyorBelt_W",
+    Size=Vector3.new(BLT_W, BLT_H, lenZ - BLT_W),
+    Position=Vector3.new(minX, BLT_Y, midZ),
+    BrickColor=BLT_CLR, Material=BLT_MAT, CanCollide=true })
 
-    -- Billboard com nome da base
-    local bb = Instance.new("BillboardGui")
-    bb.Size        = UDim2.new(0, 180, 0, 35)
-    bb.StudsOffset = Vector3.new(0, 3, 0)
-    bb.AlwaysOnTop = false
-    bb.Parent      = platform
-
-    local nameLbl = Instance.new("TextLabel")
-    nameLbl.Size                   = UDim2.new(1, 0, 1, 0)
-    nameLbl.BackgroundTransparency = 1
-    nameLbl.Text                   = baseName
-    nameLbl.TextColor3             = Color3.fromRGB(200, 200, 200)
-    nameLbl.TextStrokeTransparency = 0
-    nameLbl.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
-    nameLbl.TextScaled             = true
-    nameLbl.Font                   = Enum.Font.Gotham
-    nameLbl.Parent                 = bb
-
-    -- Número da base no chão da plataforma
-    local numberGui = Instance.new("SurfaceGui")
-    numberGui.Face   = Enum.NormalId.Top
-    numberGui.Parent = platform
-    local numLbl = Instance.new("TextLabel")
-    numLbl.Size                   = UDim2.new(1, 0, 1, 0)
-    numLbl.BackgroundTransparency = 1
-    numLbl.Text                   = tostring(i)
-    numLbl.TextColor3             = Color3.fromRGB(255, 255, 255)
-    numLbl.TextScaled             = true
-    numLbl.Font                   = Enum.Font.GothamBold
-    numLbl.Parent                 = numberGui
+-- Setas de direção na face superior de cada seção
+local arrowData = {
+    { part=beltSouth, text="►   ►   ►   ►   ►   ►   ►   ►" },
+    { part=beltNorth, text="◄   ◄   ◄   ◄   ◄   ◄   ◄   ◄" },
+    { part=beltEast,  text="▲     ▲     ▲     ▲" },
+    { part=beltWest,  text="▼     ▼     ▼     ▼" },
+}
+for _, ad in ipairs(arrowData) do
+    local sg  = Instance.new("SurfaceGui"); sg.Face=Enum.NormalId.Top; sg.Parent=ad.part
+    local lbl = Instance.new("TextLabel"); lbl.Size=UDim2.new(1,0,1,0)
+    lbl.BackgroundColor3=Color3.fromRGB(40,20,0); lbl.BackgroundTransparency=0.35
+    lbl.Text=ad.text; lbl.TextColor3=Color3.fromRGB(255,220,0); lbl.TextScaled=true
+    lbl.Font=Enum.Font.GothamBold; lbl.Parent=sg
 end
 
--- =====================================================
---  CAMINHOS ENTRE AS BASES (decoração)
--- =====================================================
--- Conecta centro às bases internas
-local innerPositions = { 9, 10, 11, 12 }
-for _, idx in ipairs(innerPositions) do
-    local pos = GameConfig.BASE_POSITIONS[idx]
-    local midX = pos.X / 2
-    local midZ = pos.Z / 2
-    local length = math.sqrt(pos.X^2 + pos.Z^2)
-    local angle  = math.atan2(pos.Z, pos.X)
+-- Trilhos neon nas bordas da esteira
+local RAIL_CLR = BrickColor.new("Bright yellow")
+local RAIL_MAT = Enum.Material.Neon
+local RAIL_T   = 0.3
+local RAIL_H_2 = 0.6
+local railY    = BLT_H + RAIL_H_2 / 2
 
-    local path = makePart({
-        Name      = "Path_inner_" .. idx,
-        Size      = Vector3.new(length - 8, 0.3, 2.5),
-        BrickColor = BrickColor.new("Medium stone grey"),
-        Material   = Enum.Material.SmoothPlastic,
-        CanCollide = false,
-        CastShadow = false,
-    })
-    path.CFrame = CFrame.new(midX, 0.15, midZ) * CFrame.Angles(0, -angle, 0)
+local function makeRail(px, pz, sx, sz)
+    local r = makePart({ Name="ConveyorRail",
+        Size=Vector3.new(sx, RAIL_H_2, sz),
+        Position=Vector3.new(px, railY, pz),
+        BrickColor=RAIL_CLR, Material=RAIL_MAT,
+        CanCollide=false, CastShadow=false, Transparency=0.2 })
+    local rl = Instance.new("PointLight"); rl.Color=Color3.fromRGB(255,210,0)
+    rl.Brightness=1.5; rl.Range=9; rl.Parent=r
 end
 
+-- Trilhos seção Sul (bordas externa e interna)
+makeRail(midX, minZ - BLT_W/2, lenX + BLT_W, RAIL_T)
+makeRail(midX, minZ + BLT_W/2, lenX + BLT_W, RAIL_T)
+-- Trilhos seção Norte
+makeRail(midX, maxZ + BLT_W/2, lenX + BLT_W, RAIL_T)
+makeRail(midX, maxZ - BLT_W/2, lenX + BLT_W, RAIL_T)
+-- Trilhos seção Leste
+makeRail(maxX + BLT_W/2, midZ, RAIL_T, lenZ - BLT_W)
+makeRail(maxX - BLT_W/2, midZ, RAIL_T, lenZ - BLT_W)
+-- Trilhos seção Oeste
+makeRail(minX - BLT_W/2, midZ, RAIL_T, lenZ - BLT_W)
+makeRail(minX + BLT_W/2, midZ, RAIL_T, lenZ - BLT_W)
+
+-- Marcador de zona de spawn (WP1 — canto SW, onde brainrots aparecem)
+local spawnMark = makePart({ Name="SpawnZoneMark",
+    Size=Vector3.new(BLT_W + 1, 0.15, BLT_W + 1),
+    Position=Vector3.new(WPS[1].X, BLT_H + 0.08, WPS[1].Z),
+    BrickColor=BrickColor.new("Lime green"), Material=Enum.Material.Neon,
+    CanCollide=false, CastShadow=false, Transparency=0.25 })
+local spawnPL = Instance.new("PointLight")
+spawnPL.Color=Color3.fromRGB(0,255,100); spawnPL.Brightness=3; spawnPL.Range=12
+spawnPL.Parent=spawnMark
+
+local spawnBB = Instance.new("BillboardGui")
+spawnBB.Size=UDim2.new(0,220,0,42); spawnBB.StudsOffset=Vector3.new(0,5,0)
+spawnBB.AlwaysOnTop=false; spawnBB.Parent=spawnMark
+local spawnLbl = Instance.new("TextLabel")
+spawnLbl.Size=UDim2.new(1,0,1,0); spawnLbl.BackgroundColor3=Color3.fromRGB(0,50,15)
+spawnLbl.BackgroundTransparency=0.3; spawnLbl.Text="🟢 SPAWN DE BRAINROTS"
+spawnLbl.TextColor3=Color3.fromRGB(80,255,130); spawnLbl.TextScaled=true
+spawnLbl.Font=Enum.Font.GothamBold; spawnLbl.TextStrokeTransparency=0
+spawnLbl.TextStrokeColor3=Color3.fromRGB(0,0,0); spawnLbl.Parent=spawnBB
+local spawnCorner=Instance.new("UICorner"); spawnCorner.CornerRadius=UDim.new(0,8)
+spawnCorner.Parent=spawnLbl
+
+-- Plataformas de observação (norte e sul da esteira — fora do retângulo)
+for _, cfg in ipairs({
+    { z=-(maxZ+10), label="[ Aproxime-se da esteira para roubar brainrots! ]" },
+    { z=  maxZ+10,  label="[ Aproxime-se da esteira para roubar brainrots! ]" },
+}) do
+    local vp = makePart({ Name="ViewPlatform",
+        Size=Vector3.new(55, 1.0, 7),
+        Position=Vector3.new(0, 0.5, cfg.z),
+        BrickColor=BrickColor.new("Medium stone grey"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=true })
+    makeSurfaceLabel(vp, cfg.label, Color3.fromRGB(220,220,220))
+end
+
+-- Luz ambiente central sobre a esteira
+local cAmbPart = Instance.new("Part")
+cAmbPart.Size=Vector3.new(0.1,0.1,0.1); cAmbPart.Position=Vector3.new(0,28,0)
+cAmbPart.Anchored=true; cAmbPart.CanCollide=false; cAmbPart.Transparency=1
+cAmbPart.Parent=workspace
+local cAmbL=Instance.new("PointLight"); cAmbL.Color=Color3.fromRGB(255,180,60)
+cAmbL.Brightness=2; cAmbL.Range=90; cAmbL.Parent=cAmbPart
+
 -- =====================================================
---  BIOMAS VISUAIS
+--  TORRES DE CANTO + BORDA DA ARENA
 -- =====================================================
--- Zona Épica: área interna (raio ~55) com chão teal brilhante
-local innerZone = makePart({
-    Name         = "InnerZoneFloor",
-    Shape        = Enum.PartType.Cylinder,
-    Size         = Vector3.new(0.35, 108, 108),
-    BrickColor   = BrickColor.new("Teal"),
-    Material     = Enum.Material.Neon,
-    CanCollide   = false,
-    CastShadow   = false,
-    Transparency = 0.82,
-})
-innerZone.CFrame = CFrame.new(0, -0.82, 0) * CFrame.Angles(0, 0, math.rad(90))
+-- 4 torres iluminadas nos cantos da esteira (cada WP tem uma torre de cor diferente)
+local towerColors = {
+    Color3.fromRGB(255, 60, 60),    -- WP1 vermelho (spawn)
+    Color3.fromRGB(255, 200, 0),    -- WP2 amarelo
+    Color3.fromRGB(60, 160, 255),   -- WP3 azul
+    Color3.fromRGB(60, 255, 120),   -- WP4 verde
+}
+for i, wp in ipairs(WPS) do
+    -- Pilar central da torre
+    makePart({ Name="CornerTower_"..i,
+        Size=Vector3.new(1.6, 22, 1.6),
+        Position=Vector3.new(wp.X, 11, wp.Z),
+        BrickColor=BrickColor.new("Really black"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=true })
+    -- Cápsula neon no topo
+    local topBall = makePart({ Name="TowerTop_"..i,
+        Shape=Enum.PartType.Ball, Size=Vector3.new(3, 3, 3),
+        Position=Vector3.new(wp.X, 23, wp.Z),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.05 })
+    topBall.Color = towerColors[i]
+    local tl = Instance.new("PointLight")
+    tl.Color=towerColors[i]; tl.Brightness=7; tl.Range=40; tl.Parent=topBall
+    -- Anel decorativo ao redor do topo
+    local topRing = makePart({ Name="TowerRing_"..i,
+        Shape=Enum.PartType.Cylinder, Size=Vector3.new(0.25, 6, 6),
+        Position=Vector3.new(wp.X, 23, wp.Z),
+        BrickColor=BrickColor.new("Institutional white"),
+        Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.35 })
+    topRing.CFrame = CFrame.new(wp.X, 23, wp.Z) * CFrame.Angles(0, 0, math.rad(90))
+    topRing.Color = towerColors[i]
+    -- Faixas na torre
+    for j = 1, 3 do
+        local stripe = makePart({ Name="TowerStripe_"..i.."_"..j,
+            Size=Vector3.new(1.7, 0.5, 1.7),
+            Position=Vector3.new(wp.X, 4*j, wp.Z),
+            BrickColor=BrickColor.new("Institutional white"),
+            Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.5 })
+        stripe.Color = towerColors[i]
+    end
+end
 
--- Anel divisório entre zona interna e externa
-local divRing = makePart({
-    Name         = "DivisionRing",
-    Shape        = Enum.PartType.Cylinder,
-    Size         = Vector3.new(0.5, 116, 116),
-    BrickColor   = BrickColor.new("Cyan"),
-    Material     = Enum.Material.Neon,
-    CanCollide   = false,
-    CastShadow   = false,
-    Transparency = 0.55,
-})
-divRing.CFrame = CFrame.new(0, -0.55, 0) * CFrame.Angles(0, 0, math.rad(90))
+-- Bordas neon da arena (contorno brilhante ao redor da área de jogo)
+local arenaW = lenX + 28   -- 108
+local arenaD = lenZ + 26   -- 70
+local borderY = 0.2
+local borderGlow = Color3.fromRGB(255, 200, 0)
+for _, bd in ipairs({
+    {px=midX,       pz=minZ - 13.5, sx=arenaW, sz=0.4},   -- sul
+    {px=midX,       pz=maxZ + 13.5, sx=arenaW, sz=0.4},   -- norte
+    {px=minX - 13.5, pz=midZ,       sx=0.4,    sz=arenaD}, -- oeste
+    {px=maxX + 13.5, pz=midZ,       sx=0.4,    sz=arenaD}, -- leste
+}) do
+    local br = makePart({ Name="ArenaBorder",
+        Size=Vector3.new(bd.sx, 0.35, bd.sz),
+        Position=Vector3.new(bd.px, borderY, bd.pz),
+        BrickColor=BrickColor.new("Bright yellow"),
+        Material=Enum.Material.Neon, CanCollide=false, CastShadow=false, Transparency=0.25 })
+    local bl = Instance.new("PointLight"); bl.Color=borderGlow; bl.Brightness=1; bl.Range=12; bl.Parent=br
+end
 
--- Legenda flutuante "ZONA ÉPICA" no centro
-local zoneMarker = Instance.new("Part")
-zoneMarker.Size        = Vector3.new(0.1, 0.1, 0.1)
-zoneMarker.Position    = Vector3.new(0, 10, 0)
-zoneMarker.Anchored    = true
-zoneMarker.CanCollide  = false
-zoneMarker.Transparency = 1
-zoneMarker.Parent      = workspace
+-- Cercado: paredes baixas de metal ao redor da arena
+for _, fd in ipairs({
+    {px=midX,       pz=minZ - 14, sx=arenaW+1, sz=0.5, h=2.5},
+    {px=midX,       pz=maxZ + 14, sx=arenaW+1, sz=0.5, h=2.5},
+    {px=minX - 14,  pz=midZ,      sx=0.5, sz=arenaD-1, h=2.5},
+    {px=maxX + 14,  pz=midZ,      sx=0.5, sz=arenaD-1, h=2.5},
+}) do
+    makePart({ Name="ArenaFence",
+        Size=Vector3.new(fd.sx, fd.h, fd.sz),
+        Position=Vector3.new(fd.px, fd.h/2, fd.pz),
+        BrickColor=BrickColor.new("Dark stone grey"),
+        Material=Enum.Material.DiamondPlate,
+        CanCollide=true, Transparency=0.15 })
+end
 
-local zoneBB = Instance.new("BillboardGui")
-zoneBB.Size        = UDim2.new(0, 220, 0, 44)
-zoneBB.StudsOffset = Vector3.new(0, 0, 0)
-zoneBB.AlwaysOnTop = false
-zoneBB.Parent      = zoneMarker
-
-local zoneLabel = Instance.new("TextLabel")
-zoneLabel.Size                   = UDim2.new(1, 0, 1, 0)
-zoneLabel.BackgroundColor3       = Color3.fromRGB(0, 50, 50)
-zoneLabel.BackgroundTransparency = 0.35
-zoneLabel.BorderSizePixel        = 0
-zoneLabel.Text                   = "✦ ZONA ÉPICA — drops raros dobrados ✦"
-zoneLabel.TextColor3             = Color3.fromRGB(0, 230, 210)
-zoneLabel.TextScaled             = true
-zoneLabel.Font                   = Enum.Font.GothamBold
-zoneLabel.TextStrokeTransparency = 0
-zoneLabel.TextStrokeColor3       = Color3.fromRGB(0, 0, 0)
-zoneLabel.Parent                 = zoneBB
-
-local zoneCorner = Instance.new("UICorner")
-zoneCorner.CornerRadius = UDim.new(0, 8)
-zoneCorner.Parent       = zoneLabel
-
--- 4 pilares de luz nos cantos da zona épica (bases internas)
-for _, idx in ipairs({9, 10, 11, 12}) do
-    local pos = GameConfig.BASE_POSITIONS[idx]
-    local pillar = makePart({
-        Name         = "EpicPillar_" .. idx,
-        Size         = Vector3.new(0.6, 12, 0.6),
-        Position     = Vector3.new(pos.X, 6, pos.Z),
-        BrickColor   = BrickColor.new("Teal"),
-        Material     = Enum.Material.Neon,
-        CanCollide   = false,
-        CastShadow   = false,
-        Transparency = 0.4,
-    })
-    local pillarLight = Instance.new("PointLight")
-    pillarLight.Color      = Color3.fromRGB(0, 200, 180)
-    pillarLight.Brightness = 3
-    pillarLight.Range      = 20
-    pillarLight.Parent     = pillar
+-- Platôs para jogadores ao redor da esteira (onde ficam perto dos brainrots)
+for _, pl2 in ipairs({
+    {px=midX,  pz=minZ-7,  sx=lenX-4,  sz=6},   -- sul da esteira
+    {px=midX,  pz=maxZ+7,  sx=lenX-4,  sz=6},   -- norte da esteira
+    {px=maxX+7, pz=midZ,   sx=6, sz=lenZ-4},    -- leste da esteira
+    {px=minX-7, pz=midZ,   sx=6, sz=lenZ-4},    -- oeste da esteira
+}) do
+    makePart({ Name="PlayerZone",
+        Size=Vector3.new(pl2.sx, 0.5, pl2.sz),
+        Position=Vector3.new(pl2.px, 0.25, pl2.pz),
+        BrickColor=BrickColor.new("Medium stone grey"),
+        Material=Enum.Material.SmoothPlastic, CanCollide=true })
 end
 
 -- =====================================================
@@ -346,10 +401,16 @@ end
 -- =====================================================
 --  DECORAÇÃO: ZONA ÉPICA (cristais + ruínas)
 -- =====================================================
+-- Cristais posicionados FORA do retângulo da esteira (|X|<40, |Z|<22)
 local crystalPositions = {
-    Vector3.new( 30,0, 15), Vector3.new(-30,0, 15), Vector3.new( 15,0, 30), Vector3.new(-15,0, 30),
-    Vector3.new( 30,0,-15), Vector3.new(-30,0,-15), Vector3.new( 15,0,-30), Vector3.new(-15,0,-30),
-    Vector3.new( 38,0,  5), Vector3.new(-38,0,  5), Vector3.new(  5,0, 38), Vector3.new( -5,0, 38),
+    -- Leste (fora da esteira)
+    Vector3.new(56, 0, -14), Vector3.new(56, 0, 0), Vector3.new(56, 0, 14),
+    -- Oeste (fora da esteira)
+    Vector3.new(-56, 0, -14), Vector3.new(-56, 0, 0), Vector3.new(-56, 0, 14),
+    -- Norte (fora da esteira)
+    Vector3.new(-18, 0, 36), Vector3.new(0, 0, 38), Vector3.new(18, 0, 36),
+    -- Sul (fora da esteira)
+    Vector3.new(-18, 0, -36), Vector3.new(0, 0, -38), Vector3.new(18, 0, -36),
 }
 local crystalColors = {
     Color3.fromRGB(0,220,200), Color3.fromRGB(80,200,255), Color3.fromRGB(150,80,255), Color3.fromRGB(0,255,180),
@@ -403,7 +464,7 @@ end
 local vendedor = Instance.new("Part")
 vendedor.Name       = "VendedorNPC"
 vendedor.Size       = Vector3.new(2, 4.5, 1.2)
-vendedor.Position   = Vector3.new(0, 2.25, -16)
+vendedor.Position   = Vector3.new(0, 2.25, -33)
 vendedor.Anchored   = true
 vendedor.CanCollide = true
 vendedor.BrickColor = BrickColor.new("Reddish brown")
@@ -412,36 +473,36 @@ vendedor.Parent     = workspace
 
 -- Barriga/roupa (manto)
 local vendRobe = makePart({
-    Name="VendedorRobe", Size=Vector3.new(2.4,4.2,1.4), Position=Vector3.new(0,2.1,-16),
+    Name="VendedorRobe", Size=Vector3.new(2.4,4.2,1.4), Position=Vector3.new(0,2.1,-33),
     BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false,
 })
 
 -- Braço esquerdo
-makePart({ Name="VendedorArmL", Size=Vector3.new(0.7,3.2,0.7), Position=Vector3.new(-1.5,2.2,-16),
+makePart({ Name="VendedorArmL", Size=Vector3.new(0.7,3.2,0.7), Position=Vector3.new(-1.5,2.2,-33),
     BrickColor=BrickColor.new("Reddish brown"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
 
 -- Braço direito (segurando cajado)
-makePart({ Name="VendedorArmR", Size=Vector3.new(0.7,3.2,0.7), Position=Vector3.new(1.5,2.2,-16),
+makePart({ Name="VendedorArmR", Size=Vector3.new(0.7,3.2,0.7), Position=Vector3.new(1.5,2.2,-33),
     BrickColor=BrickColor.new("Reddish brown"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
 
 -- Cajado
 local staffPole = makePart({ Name="VendedorStaff", Size=Vector3.new(0.3,6,0.3),
-    Position=Vector3.new(2.5,3,-16), BrickColor=BrickColor.new("Dark orange"),
+    Position=Vector3.new(2.5,3,-33), BrickColor=BrickColor.new("Dark orange"),
     Material=Enum.Material.Wood, CanCollide=false })
 local staffGem  = makePart({ Name="VendedorStaffGem", Shape=Enum.PartType.Ball,
-    Size=Vector3.new(1.2,1.2,1.2), Position=Vector3.new(2.5,6.3,-16),
+    Size=Vector3.new(1.2,1.2,1.2), Position=Vector3.new(2.5,6.3,-33),
     BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.Neon,
     CanCollide=false, CastShadow=false, Transparency=0.1 })
 staffGem.Color = Color3.fromRGB(130,80,255)
 local gemLight = Instance.new("PointLight"); gemLight.Color=Color3.fromRGB(130,80,255); gemLight.Brightness=3; gemLight.Range=16; gemLight.Parent=staffGem
 
 -- Chapéu de mago (cone + aba)
-local hatBrim = makePart({ Name="VendedorHatBrim", Size=Vector3.new(3,0.3,3), Position=Vector3.new(0,7.2,-16),
+local hatBrim = makePart({ Name="VendedorHatBrim", Size=Vector3.new(3,0.3,3), Position=Vector3.new(0,7.2,-33),
     BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
-local hatCone = makePart({ Name="VendedorHatCone", Size=Vector3.new(1.6,3,1.6), Position=Vector3.new(0,8.7,-16),
+local hatCone = makePart({ Name="VendedorHatCone", Size=Vector3.new(1.6,3,1.6), Position=Vector3.new(0,8.7,-33),
     BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
 local hatStar = makePart({ Name="VendedorHatStar", Shape=Enum.PartType.Ball, Size=Vector3.new(0.5,0.5,0.5),
-    Position=Vector3.new(0,10.4,-16), BrickColor=BrickColor.new("Institutional white"),
+    Position=Vector3.new(0,10.4,-33), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
 hatStar.Color = Color3.fromRGB(255,220,60)
 Instance.new("PointLight").Color=Color3.fromRGB(255,220,60); local hatL=Instance.new("PointLight"); hatL.Color=Color3.fromRGB(255,220,60); hatL.Brightness=2; hatL.Range=10; hatL.Parent=hatStar
@@ -451,7 +512,7 @@ local vendHead = makePart({
     Name       = "VendedorHead",
     Shape      = Enum.PartType.Ball,
     Size       = Vector3.new(2.2, 2.2, 2.2),
-    Position   = Vector3.new(0, 6.1, -16),
+    Position   = Vector3.new(0, 6.1, -33),
     BrickColor = BrickColor.new("Brick yellow"),
     Material   = Enum.Material.SmoothPlastic,
     CanCollide = false,
@@ -499,20 +560,20 @@ pp.Parent                = vendedor
 -- =====================================================
 -- Pet Ratinho — pequeno rato cinza ao lado do NPC
 local ratBody = makePart({ Name="PetRatinho_Body", Shape=Enum.PartType.Ball,
-    Size=Vector3.new(1.2,0.9,1.5), Position=Vector3.new(-3,0.45,-16),
+    Size=Vector3.new(1.2,0.9,1.5), Position=Vector3.new(-3,0.45,-33),
     BrickColor=BrickColor.new("Medium stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
 makePart({ Name="PetRatinho_Head", Shape=Enum.PartType.Ball, Size=Vector3.new(0.9,0.9,0.9),
-    Position=Vector3.new(-3.2,1.05,-15.2), BrickColor=BrickColor.new("Medium stone grey"),
+    Position=Vector3.new(-3.2,1.05,-41.2), BrickColor=BrickColor.new("Medium stone grey"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false })
 makePart({ Name="PetRatinho_EarL", Shape=Enum.PartType.Ball, Size=Vector3.new(0.35,0.35,0.1),
-    Position=Vector3.new(-2.95,1.6,-15.1), BrickColor=BrickColor.new("Light reddish violet"),
+    Position=Vector3.new(-2.95,1.6,-41.1), BrickColor=BrickColor.new("Light reddish violet"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false })
 makePart({ Name="PetRatinho_EarR", Shape=Enum.PartType.Ball, Size=Vector3.new(0.35,0.35,0.1),
-    Position=Vector3.new(-3.45,1.6,-15.1), BrickColor=BrickColor.new("Light reddish violet"),
+    Position=Vector3.new(-3.45,1.6,-41.1), BrickColor=BrickColor.new("Light reddish violet"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false })
 -- Brilho nos olhos do ratinho
 local ratEye = makePart({ Name="PetRatinho_Eye", Shape=Enum.PartType.Ball, Size=Vector3.new(0.2,0.2,0.2),
-    Position=Vector3.new(-3.1,1.1,-14.8), BrickColor=BrickColor.new("Institutional white"),
+    Position=Vector3.new(-3.1,1.1,-40.8), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
 ratEye.Color = Color3.fromRGB(255,50,50)
 -- Billboard com nome do pet
@@ -523,16 +584,16 @@ ratLbl.Font=Enum.Font.GothamBold; ratLbl.TextStrokeTransparency=0; ratLbl.TextSt
 
 -- Pet Gato Místico — gato azul/místico do outro lado
 local gatoBody = makePart({ Name="PetGato_Body", Shape=Enum.PartType.Ball,
-    Size=Vector3.new(1.4,1.1,1.6), Position=Vector3.new(3,0.55,-16),
+    Size=Vector3.new(1.4,1.1,1.6), Position=Vector3.new(3,0.55,-33),
     BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
 gatoBody.Color = Color3.fromRGB(160,100,255)
 makePart({ Name="PetGato_Head", Shape=Enum.PartType.Ball, Size=Vector3.new(1.1,1.1,1.1),
-    Position=Vector3.new(3.2,1.3,-15.2), BrickColor=BrickColor.new("Institutional white"),
+    Position=Vector3.new(3.2,1.3,-41.2), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.SmoothPlastic, CanCollide=false }).Color = Color3.fromRGB(160,100,255)
-makePart({ Name="PetGato_EarL", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(2.9,2.0,-15.15),
+makePart({ Name="PetGato_EarL", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(2.9,2.0,-41.15),
     BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic,
     CanCollide=false }).Color = Color3.fromRGB(160,100,255)
-makePart({ Name="PetGato_EarR", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(3.5,2.0,-15.15),
+makePart({ Name="PetGato_EarR", Size=Vector3.new(0.4,0.5,0.15), Position=Vector3.new(3.5,2.0,-41.15),
     BrickColor=BrickColor.new("Institutional white"), Material=Enum.Material.SmoothPlastic,
     CanCollide=false }).Color = Color3.fromRGB(160,100,255)
 -- Aura mística ao redor do gato
@@ -542,7 +603,7 @@ gatoPE.Color  = ColorSequence.new({ ColorSequenceKeypoint.new(0,Color3.fromRGB(1
 gatoPE.Size   = NumberSequence.new({ NumberSequenceKeypoint.new(0,0.2), NumberSequenceKeypoint.new(1,0) })
 gatoPE.Lifetime=NumberRange.new(0.8,1.6); gatoPE.Rate=12; gatoPE.Speed=NumberRange.new(1,3); gatoPE.SpreadAngle=Vector2.new(180,180)
 local gatoEye = makePart({ Name="PetGato_Eye", Shape=Enum.PartType.Ball, Size=Vector3.new(0.25,0.25,0.25),
-    Position=Vector3.new(3.1,1.35,-14.7), BrickColor=BrickColor.new("Institutional white"),
+    Position=Vector3.new(3.1,1.35,-40.7), BrickColor=BrickColor.new("Institutional white"),
     Material=Enum.Material.Neon, CanCollide=false, CastShadow=false })
 gatoEye.Color = Color3.fromRGB(80,200,255)
 local catLight = Instance.new("PointLight"); catLight.Color=Color3.fromRGB(160,80,255); catLight.Brightness=2; catLight.Range=10; catLight.Parent=gatoBody
@@ -551,4 +612,4 @@ local catoLbl = Instance.new("TextLabel"); catoLbl.Size=UDim2.new(1,0,1,0); cato
 catoLbl.Text="🐱 Gato Místico"; catoLbl.TextColor3=Color3.fromRGB(220,160,255); catoLbl.TextScaled=true
 catoLbl.Font=Enum.Font.GothamBold; catoLbl.TextStrokeTransparency=0; catoLbl.TextStrokeColor3=Color3.fromRGB(0,0,0); catoLbl.Parent=catoBB
 
-print("[BrainrotRoubo] Mapa COMPLETO gerado: " .. #GameConfig.BASE_POSITIONS .. " bases, biomas, NPC Zé das Upgrades, pets e decorações!")
+print("[BrainrotRoubo] Mapa COMPLETO gerado: esteira central com " .. #GameConfig.CONVEYOR_WAYPOINTS .. " waypoints, NPC Zé das Upgrades, pets e decorações!")

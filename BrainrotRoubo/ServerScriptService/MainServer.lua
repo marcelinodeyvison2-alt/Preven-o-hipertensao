@@ -70,9 +70,9 @@ local LoginStreakRE      = makeRE("LoginStreak")
 local BrainrotsFolder = Instance.new("Folder")
 BrainrotsFolder.Name = "Brainrots"; BrainrotsFolder.Parent = workspace
 
-local BaseOccupied      = {}
+-- ConveyorBrainrots[part] = { wpIdx, wpProg, t, rings, orbs }
+local ConveyorBrainrots = {}
 local globalSpawnCount  = 0
-local currentInnerBases = {9, 10, 11, 12}
 local tradeIdCounter    = 0
 local PendingTrades     = {}
 local Teams             = {}   -- teamId -> {userId1, userId2}
@@ -460,7 +460,6 @@ local function loadData(player)
     end
     AchievementRE:FireClient(player, achList)
     EventUpdateRE:FireClient(player, GameConfig.CURRENT_EVENT)
-    BiomeUpdateRE:FireClient(player, currentInnerBases)
     LoginStreakRE:FireClient(player, data.loginStreak, streakReward)
 end
 
@@ -501,20 +500,13 @@ local function pickMutation(forceLua)
     return GameConfig.MUTATIONS[1]
 end
 
-local function isInnerBase(baseIdx)
-    for _, i in ipairs(currentInnerBases) do if i==baseIdx then return true end end
-    return false
-end
-
-local function pickBrainrotType(baseIdx, petRarityBonus)
+local function pickBrainrotType(petRarityBonus)
     local weights = {}; local total = 0
-    local inner   = isInnerBase(baseIdx)
     local evBonus = GameConfig.CURRENT_EVENT and GameConfig.CURRENT_EVENT.rarBonus or 1
     for rarity, w in pairs(GameConfig.RARITY_WEIGHTS) do
         local rank = GameConfig.RARITY_RANK[rarity] or 1
         local adj  = w
-        if inner    and rank >= 4 then adj = adj * 2           end
-        if evBonus  and rank >= 4 then adj = math.floor(adj * evBonus) end
+        if evBonus        and rank >= 4 then adj = math.floor(adj * evBonus) end
         if petRarityBonus and rank >= 4 then adj = math.floor(adj * (1 + petRarityBonus)) end
         weights[rarity] = adj; total = total + adj
     end
@@ -617,127 +609,165 @@ local function buildBrainrotVisuals(part, rarity, isLua, rarColor)
 end
 
 -- =====================================================
---  SPAWN DE BRAINROT
+--  SPAWN DE BRAINROT (sistema de esteira)
 -- =====================================================
-local RARE_RANK   = 4   -- Épico
-local DRAMA_RANK  = 7   -- God ou melhor dispara câmera shake
-
-local function getFreeBases()
-    local free = {}
-    for i=1,#GameConfig.BASE_POSITIONS do if not BaseOccupied[i] then table.insert(free,i) end end
-    return free
-end
+local RARE_RANK  = 4   -- Épico
+local DRAMA_RANK = 7   -- God ou melhor → anúncio dramático
 
 local function spawnBrainrot()
-    local freeBases = getFreeBases(); if #freeBases == 0 then return end
+    -- Limita simultâneos na esteira
+    local count = 0
+    for _ in pairs(ConveyorBrainrots) do count = count + 1 end
+    if count >= GameConfig.MAX_BRAINROTS then return end
+
     globalSpawnCount = globalSpawnCount + 1
-    local isLua = (globalSpawnCount % GameConfig.LUA_DE_SANGUE_INTERVAL == 0)
-
-    local baseIdx = freeBases[math.random(1,#freeBases)]
-    local basePos = GameConfig.BASE_POSITIONS[baseIdx]
-    local bt      = pickBrainrotType(baseIdx, 0)
+    local isLua   = (globalSpawnCount % GameConfig.LUA_DE_SANGUE_INTERVAL == 0)
+    local bt      = pickBrainrotType(0)
     local mut     = pickMutation(isLua)
-
     local rarColor = GameConfig.RARITY_COLORS[bt.rarity]
-    local spawnY   = basePos.Y + 4
+
+    -- Spawn no WP1 (canto SW da esteira)
+    local wp1 = GameConfig.CONVEYOR_WAYPOINTS[1]
 
     local part = Instance.new("Part")
     part.Name       = "BrainrotPart"; part.Shape = Enum.PartType.Ball
-    part.Size       = Vector3.new(3.5,3.5,3.5)
-    part.Position   = Vector3.new(basePos.X, spawnY, basePos.Z)
+    part.Size       = Vector3.new(3.5, 3.5, 3.5)
+    part.Position   = Vector3.new(wp1.X, wp1.Y, wp1.Z)
     part.Anchored   = true; part.CanCollide = false
-    part.Color      = isLua and Color3.fromRGB(200,0,0) or rarColor
+    part.Color      = isLua and Color3.fromRGB(200, 0, 0) or rarColor
     part.Material   = Enum.Material.Neon; part.CastShadow = false
     part.Parent     = BrainrotsFolder
     buildBrainrotVisuals(part, bt.rarity, isLua, rarColor)
 
     local light = Instance.new("PointLight")
-    light.Color      = isLua and Color3.fromRGB(255,0,0) or rarColor
+    light.Color      = isLua and Color3.fromRGB(255, 0, 0) or rarColor
     light.Brightness = isLua and 10 or 4; light.Range = isLua and 35 or 18
     light.Parent     = part
 
     local bb = Instance.new("BillboardGui")
-    bb.Size = UDim2.new(0,240,0,isLua and 100 or 80); bb.StudsOffset=Vector3.new(0,4,0); bb.Parent=part
+    bb.Size = UDim2.new(0, 240, 0, isLua and 100 or 80)
+    bb.StudsOffset = Vector3.new(0, 4, 0); bb.Parent = part
 
-    local function addLabel(yPos,h,text,color,bold)
-        local l=Instance.new("TextLabel"); l.Size=UDim2.new(1,0,h,0); l.Position=UDim2.new(0,0,yPos,0)
+    local function addLabel(yPos, h, text, color, bold)
+        local l = Instance.new("TextLabel"); l.Size=UDim2.new(1,0,h,0); l.Position=UDim2.new(0,0,yPos,0)
         l.BackgroundTransparency=1; l.Text=text; l.TextColor3=color
         l.TextStrokeTransparency=0; l.TextStrokeColor3=Color3.fromRGB(0,0,0)
         l.TextScaled=true; l.Font=bold and Enum.Font.GothamBold or Enum.Font.Gotham; l.Parent=bb
     end
-    addLabel(0,0.38,isLua and("🌑 "..bt.name.." 🌑")or bt.name,Color3.fromRGB(255,255,255),true)
-    addLabel(0.38,0.30,"[ "..bt.rarity.." ]",rarColor,false)
-    addLabel(0.68,0.32,isLua and"✦ LUA DE SANGUE ×20 ✦"or("✦ "..mut.name.."  ×"..mut.multiplier),mut.color,true)
+    addLabel(0,    0.38, isLua and("🌑 "..bt.name.." 🌑") or bt.name, Color3.fromRGB(255,255,255), true)
+    addLabel(0.38, 0.30, "[ "..bt.rarity.." ]", rarColor, false)
+    addLabel(0.68, 0.32, isLua and"✦ LUA DE SANGUE ×20 ✦" or("✦ "..mut.name.."  ×"..mut.multiplier), mut.color, true)
 
-    local meta=Instance.new("Folder"); meta.Name="Meta"; meta.Parent=part
-    local function addVal(cls,name,val)
-        local v=Instance.new(cls); v.Name=name; v.Value=val; v.Parent=meta
+    local meta = Instance.new("Folder"); meta.Name="Meta"; meta.Parent=part
+    local function addVal(cls, name, val)
+        local v = Instance.new(cls); v.Name=name; v.Value=val; v.Parent=meta
     end
-    addVal("StringValue","BrainrotName",bt.name); addVal("StringValue","Rarity",bt.rarity)
-    addVal("IntValue","AuraValue",bt.baseAura);   addVal("StringValue","MutationName",mut.name)
-    addVal("IntValue","MutationMult",mut.multiplier); addVal("IntValue","BaseIndex",baseIdx)
+    addVal("StringValue","BrainrotName", bt.name)
+    addVal("StringValue","Rarity",       bt.rarity)
+    addVal("IntValue",   "AuraValue",    bt.baseAura)
+    addVal("StringValue","MutationName", mut.name)
+    addVal("IntValue",   "MutationMult", mut.multiplier)
 
-    BaseOccupied[baseIdx] = part
-    local bp2 = workspace:FindFirstChild("Base_"..baseIdx)
-    if bp2 then local ind=bp2:FindFirstChild("Indicator"); if ind then ind.Color=isLua and Color3.fromRGB(255,0,0) or rarColor end end
-
-    local baseY=spawnY; local t=0; local conn
-    -- Separa anéis e orbs para animações distintas
+    -- Cacheia anéis e orbs para o heartbeat global não chamar GetChildren() a cada frame
     local meshRings = {}
     local meshOrbs  = {}
     for _, c in ipairs(part:GetChildren()) do
         if c:IsA("BasePart") then
-            if c.Name:sub(1,4)=="Ring" then table.insert(meshRings, c)
-            elseif c.Name:sub(1,3)=="Orb" then table.insert(meshOrbs, c)
+            if c.Name:sub(1,4) == "Ring" then table.insert(meshRings, c)
+            elseif c.Name:sub(1,3) == "Orb" then table.insert(meshOrbs, c)
             end
         end
     end
-    local orbTotal = #meshOrbs
-    conn = RunService.Heartbeat:Connect(function(dt)
-        t=t+dt
-        if not part or not part.Parent then conn:Disconnect(); return end
-        local yOff = baseY + math.sin(t*1.8)*0.7
-        part.CFrame = CFrame.new(basePos.X, yOff, basePos.Z) * CFrame.Angles(0, t*0.9, 0)
-        for i, ring in ipairs(meshRings) do
-            ring.CFrame = CFrame.new(basePos.X, yOff, basePos.Z)
-                * CFrame.Angles(math.rad(t*25*i), math.rad(t*15*i), math.rad(90))
-        end
-        -- Orbs orbitam ao redor como satélites
-        for i, orb in ipairs(meshOrbs) do
-            local angle  = t * 1.6 + (i-1) * (math.pi*2 / math.max(orbTotal,1))
-            local radius = 2.8 + i * 0.4
-            orb.CFrame = CFrame.new(
-                basePos.X + math.cos(angle)*radius,
-                yOff + math.sin(t*2.2 + i)*0.45,
-                basePos.Z + math.sin(angle)*radius
-            )
-        end
-    end)
+    ConveyorBrainrots[part] = { wpIdx=1, wpProg=0, t=0, rings=meshRings, orbs=meshOrbs }
 
-    -- Anúncios
+    -- Anúncios globais
     if isLua then
         GlobalAnnounceRE:FireAllClients(
-            string.format("🌑 LUA DE SANGUE em %s!  [%s]  ×20 Aura!", GameConfig.BASE_NAMES[baseIdx] or "Base "..baseIdx, bt.rarity),
-            Color3.fromRGB(220,0,0))
+            string.format("🌑 LUA DE SANGUE na esteira!  [%s]  ×20 Aura!", bt.rarity),
+            Color3.fromRGB(220, 0, 0))
     else
         local rank = GameConfig.RARITY_RANK[bt.rarity] or 0
         if rank >= RARE_RANK then
             local dramatic = rank >= DRAMA_RANK
             GlobalAnnounceRE:FireAllClients(
-                string.format("%s %s [%s] em %s!", dramatic and"⚡ ÉPICO EXTREMO!"or"✦", bt.name, bt.rarity, GameConfig.BASE_NAMES[baseIdx] or"Base "..baseIdx),
+                string.format("%s %s [%s] na esteira!", dramatic and"⚡ ÉPICO EXTREMO!"or"✦", bt.name, bt.rarity),
                 rarColor, dramatic)
         end
     end
-
-    task.delay(GameConfig.BRAINROT_LIFETIME, function()
-        if part and part.Parent then
-            conn:Disconnect(); BaseOccupied[baseIdx]=nil
-            local bp3=workspace:FindFirstChild("Base_"..baseIdx)
-            if bp3 then local ind=bp3:FindFirstChild("Indicator"); if ind then ind.Color=Color3.fromRGB(60,60,80) end end
-            part:Destroy()
-        end
-    end)
 end
+
+-- =====================================================
+--  HEARTBEAT GLOBAL DA ESTEIRA
+-- =====================================================
+RunService.Heartbeat:Connect(function(dt)
+    local WPS   = GameConfig.CONVEYOR_WAYPOINTS
+    local nWP   = #WPS
+    local SPEED = GameConfig.CONVEYOR_SPEED or 9
+
+    local toRemove = {}
+
+    for part, data in pairs(ConveyorBrainrots) do
+        if not part or not part.Parent then
+            table.insert(toRemove, part)
+            continue
+        end
+
+        data.t = data.t + dt
+
+        local fromWP  = WPS[data.wpIdx]
+        local nextIdx = (data.wpIdx % nWP) + 1
+        local toWP    = WPS[nextIdx]
+        local dxz     = math.sqrt((toWP.X - fromWP.X)^2 + (toWP.Z - fromWP.Z)^2)
+        local segLen  = math.max(dxz, 0.01)
+
+        data.wpProg = data.wpProg + SPEED * dt / segLen
+
+        local despawn = false
+        if data.wpProg >= 1 then
+            data.wpProg = data.wpProg - 1
+            if data.wpIdx >= nWP then
+                -- Loop completo → despawn (voltou ao WP1)
+                despawn = true
+            else
+                data.wpIdx = data.wpIdx + 1
+                fromWP  = WPS[data.wpIdx]
+                nextIdx = (data.wpIdx % nWP) + 1
+                toWP    = WPS[nextIdx]
+            end
+        end
+
+        if despawn then
+            table.insert(toRemove, part)
+        else
+            local px = fromWP.X + (toWP.X - fromWP.X) * data.wpProg
+            local pz = fromWP.Z + (toWP.Z - fromWP.Z) * data.wpProg
+            local py = fromWP.Y + math.sin(data.t * 1.8) * 0.7
+
+            part.CFrame = CFrame.new(px, py, pz) * CFrame.Angles(0, data.t * 0.9, 0)
+
+            for i, ring in ipairs(data.rings) do
+                ring.CFrame = CFrame.new(px, py, pz)
+                    * CFrame.Angles(math.rad(data.t*25*i), math.rad(data.t*15*i), math.rad(90))
+            end
+
+            local orbTotal = #data.orbs
+            for i, orb in ipairs(data.orbs) do
+                local angle  = data.t * 1.6 + (i-1) * (math.pi*2 / math.max(orbTotal,1))
+                local radius = 2.8 + i * 0.4
+                orb.CFrame = CFrame.new(
+                    px + math.cos(angle) * radius,
+                    py + math.sin(data.t * 2.2 + i) * 0.45,
+                    pz + math.sin(angle) * radius
+                )
+            end
+        end
+    end
+
+    for _, p in ipairs(toRemove) do
+        ConveyorBrainrots[p] = nil
+        pcall(function() if p.Parent then p:Destroy() end end)
+    end
+end)
 
 -- =====================================================
 --  EVENTO: ROUBAR BRAINROT (aura)
@@ -764,7 +794,6 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     local baseAura= meta:FindFirstChild("AuraValue")    and meta.AuraValue.Value    or 10
     local mutName = meta:FindFirstChild("MutationName") and meta.MutationName.Value or "Básico"
     local mutMult = meta:FindFirstChild("MutationMult") and meta.MutationMult.Value or 1
-    local baseIdx = meta:FindFirstChild("BaseIndex")    and meta.BaseIndex.Value    or 0
 
     -- Rebirth rarity upgrade: a cada REBIRTH_RARITY_UPGRADE_EVERY rebirths, +X% chance
     local upgradeThresholds = math.floor(data.rebirths / (GameConfig.REBIRTH_RARITY_UPGRADE_EVERY or 3))
@@ -850,12 +879,8 @@ StealEvent.OnServerEvent:Connect(function(player, brainrotPart)
     -- Battlepass XP
     addBPXP(player, data, GameConfig.BATTLEPASS_XP_STEAL)
 
-    -- Remove brainrot
-    if baseIdx>0 then
-        BaseOccupied[baseIdx]=nil
-        local bp2=workspace:FindFirstChild("Base_"..baseIdx)
-        if bp2 then local ind=bp2:FindFirstChild("Indicator"); if ind then ind.Color=Color3.fromRGB(60,60,80) end end
-    end
+    -- Remove brainrot da esteira
+    ConveyorBrainrots[brainrotPart] = nil
     brainrotPart:Destroy()
 
     -- Notificação global para roubos God+
@@ -1300,25 +1325,12 @@ task.spawn(function()
     end
 end)
 
--- Rotação de bioma
+-- Loop de spawn da esteira
 task.spawn(function()
     while true do
-        task.wait(GameConfig.BIOME_ROTATION_INTERVAL)
-        local pool = {}
-        for i=1,#GameConfig.BASE_POSITIONS do table.insert(pool,i) end
-        for i=#pool,2,-1 do local j=math.random(1,i); pool[i],pool[j]=pool[j],pool[i] end
-        currentInnerBases = {pool[1],pool[2],pool[3],pool[4]}
-        local names={}
-        for _,idx in ipairs(currentInnerBases) do table.insert(names, GameConfig.BASE_NAMES[idx] or "Base "..idx) end
-        GlobalAnnounceRE:FireAllClients("🗺 ZONA ÉPICA mudou! Novas bases: "..table.concat(names,", "), Color3.fromRGB(0,200,180))
-        BiomeUpdateRE:FireAllClients(currentInnerBases)
+        task.wait(GameConfig.SPAWN_INTERVAL)
+        spawnBrainrot()
     end
-end)
-
--- Loop de spawn
-task.spawn(function()
-    for _=1,#GameConfig.BASE_POSITIONS do spawnBrainrot(); task.wait(0.15) end
-    while true do task.wait(GameConfig.SPAWN_INTERVAL); spawnBrainrot() end
 end)
 
 print("[BrainrotRoubo] Servidor COMPLETO iniciado! Todos os sistemas ativos.")

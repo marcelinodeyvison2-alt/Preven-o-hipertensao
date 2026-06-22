@@ -135,10 +135,10 @@ GameConfig.REBIRTH_COST_FRACTION = 0.8
 -- =====================================================
 --  MUNDO
 -- =====================================================
-GameConfig.STEAL_RANGE       = 18   -- aumentado pois bases são fixas
-GameConfig.MAX_BRAINROTS     = 12   -- igual ao nº de bases
-GameConfig.BRAINROT_LIFETIME = 50
-GameConfig.SPAWN_INTERVAL    = 2.5
+GameConfig.STEAL_RANGE       = 18
+GameConfig.MAX_BRAINROTS     = 20
+GameConfig.BRAINROT_LIFETIME = 50   -- legado (não usado no sistema de esteira)
+GameConfig.SPAWN_INTERVAL    = 3.0
 
 -- =====================================================
 --  UPGRADES (loja de aura)
@@ -407,5 +407,18 @@ GameConfig.RARITY_ICONS = {
     Secret   = "❓",
     OG       = "🏆",
 }
+
+-- =====================================================
+--  ESTEIRA (CONVEYOR BELT)
+-- =====================================================
+-- Waypoints em loop retangular — brainrots percorrem WP1→2→3→4→despawn
+-- Y=4.5 = altura em que os brainrots flutuam acima da esteira (topo em Y=1.5)
+GameConfig.CONVEYOR_WAYPOINTS = {
+    Vector3.new(-40, 4.5, -22),   -- WP1 → spawn (canto SW)
+    Vector3.new( 40, 4.5, -22),   -- WP2 (canto SE)
+    Vector3.new( 40, 4.5,  22),   -- WP3 (canto NE)
+    Vector3.new(-40, 4.5,  22),   -- WP4 (canto NW) → despawn ao chegar WP1
+}
+GameConfig.CONVEYOR_SPEED = 9   -- studs por segundo
 
 return GameConfig
