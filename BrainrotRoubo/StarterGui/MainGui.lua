@@ -1504,64 +1504,181 @@ TeamBtn.Activated:Connect(function()
 end)
 
 -- =====================================================
---  TUTORIAL POPUP
+--  TUTORIAL POPUP (atualizado)
 -- =====================================================
 local tutorialSteps = {
-    {title="👋 Bem-vindo!", text="Bem-vindo ao Brainrot Roubo!\nRoube brainrots nas bases para ganhar AURA."},
-    {title="🎯 Como roubar", text="Aproxime-se de uma base colorida.\nPressione [E] ou aguarde o auto-roubo."},
-    {title="💫 Rebirths", text="Quando a barra de Aura encher, pressione\nRENASCER para multiplicar seus ganhos!"},
-    {title="⭐ Prestígio", text="Após 8 rebirths, faça Prestígio para\nganhar multiplicador permanente."},
-    {title="🎒 Inventário", text="Colecione brainrots no inventário.\nCombine 2 iguais para um mais raro!"},
-    {title="🐾 Pets", text="Compre Pets para bônus de Aura\ne raridade. Equipe um ativo."},
-    {title="✅ Bom jogo!", text="Explore as bases, complete missões\ne suba no ranking global. Boa sorte!"},
+    {
+        title = "👋 Bem-vindo ao Brainrot Roubo!",
+        text  = "Neste jogo você rouba brainrots na esteira\nconveyor para acumular AURA e subir no ranking!",
+        color = Color3.fromRGB(80, 180, 255),
+    },
+    {
+        title = "🎯 Como Roubar",
+        text  = "Brainrots flutuam na esteira em loop.\nAproxime-se de um e pressione [E] para roubar!",
+        color = Color3.fromRGB(80, 220, 120),
+    },
+    {
+        title = "💎 Raridades",
+        text  = "Existem 9 raridades:\nComum → Incomum → Raro → Épico → Lendário\n→ Mítico → God → Secret → OG\nMais raro = mais Aura!",
+        color = Color3.fromRGB(190, 80, 255),
+    },
+    {
+        title = "✨ Mutações",
+        text  = "Cada brainrot pode vir com mutação:\nBásico, Bronze, Ouro, Diamante, Esmeralda\nou a raríssima 🌑 Lua de Sangue (×20 aura)!",
+        color = Color3.fromRGB(200, 0, 0),
+    },
+    {
+        title = "🔄 Rebirths",
+        text  = "Quando a barra de Aura encher, pressione\nRENASCER para dobrar seus ganhos!\nCada rebirth multiplica tudo por 2.",
+        color = Color3.fromRGB(255, 200, 0),
+    },
+    {
+        title = "⭐ Prestígio",
+        text  = "Após 12 rebirths, faça Prestígio para\nganhar multiplicador permanente de ×1.5.\nA trilha de partículas desbloqueia no Rebirth 5!",
+        color = Color3.fromRGB(255, 150, 0),
+    },
+    {
+        title = "🎰 Lucky Spin",
+        text  = "A cada 35 brainrots roubados você ganha\numa roleta premiada — pode ganhar Aura,\nmultiplicador temporário ou um Título raro!",
+        color = Color3.fromRGB(255, 215, 0),
+    },
+    {
+        title = "🐾 Pets & Upgrades",
+        text  = "Compre Pets na loja para bônus de Aura e raridade.\nUpgrade seu Alcance, Velocidade e Bônus\nna loja de upgrades.",
+        color = Color3.fromRGB(100, 220, 255),
+    },
+    {
+        title = "🏆 Rankings & Temporada",
+        text  = "Seu desempenho aparece no Leaderboard 3D\nno mapa e no Ranking de Temporada mensal.\nComplete missões diárias e semanais para subir!",
+        color = Color3.fromRGB(255, 195, 0),
+    },
+    {
+        title = "✅ Boa sorte!",
+        text  = "Agora é com você! Roube, evolua, faça\nrebirths e chegue ao OG — 1 em 1.000.000.\nDivirta-se! 🎮",
+        color = Color3.fromRGB(80, 255, 160),
+    },
 }
 local tutStep = 1
 local tutShown = false
 
+-- Frame principal
 local TutorialFrame = makeFrame(ScreenGui, {
-    Size=UDim2.new(0,420,0,200), Position=UDim2.new(0.5,-210,0.5,-100),
-    BackgroundColor3=Color3.fromRGB(8,8,16), BackgroundTransparency=0.05,
-    BorderSizePixel=0, Visible=false, ZIndex=30,
+    Size     = UDim2.new(0, 480, 0, 290),
+    Position = UDim2.new(0.5, -240, 0.5, -145),
+    BackgroundColor3     = Color3.fromRGB(6, 6, 18),
+    BackgroundTransparency = 0.04,
+    BorderSizePixel = 0,
+    Visible = false, ZIndex = 30,
 })
-round(TutorialFrame, 18); stroke(TutorialFrame, Color3.fromRGB(80,180,255), 2.5)
-local TutTitle = makeTL(TutorialFrame, {
-    Size=UDim2.new(1,0,0,44), BackgroundColor3=Color3.fromRGB(8,12,24), BackgroundTransparency=0,
-    Text="Tutorial", TextColor3=Color3.fromRGB(80,180,255), TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=31,
+round(TutorialFrame, 20)
+local tutStroke = stroke(TutorialFrame, Color3.fromRGB(80, 180, 255), 2.5)
+
+-- Cabeçalho colorido
+local TutHeader = makeFrame(TutorialFrame, {
+    Size = UDim2.new(1, 0, 0, 52),
+    BackgroundColor3 = Color3.fromRGB(8, 12, 30),
+    BorderSizePixel  = 0, ZIndex = 31,
 })
+round(TutHeader, 20)
+
+local TutTitle = makeTL(TutHeader, {
+    Size = UDim2.new(1, -16, 1, 0), Position = UDim2.new(0, 8, 0, 0),
+    BackgroundTransparency = 1,
+    Text = "Tutorial", TextColor3 = Color3.fromRGB(80, 180, 255),
+    TextScaled = true, Font = Enum.Font.GothamBold, ZIndex = 32,
+    TextXAlignment = Enum.TextXAlignment.Left,
+})
+
+-- Texto principal
 local TutText = makeTL(TutorialFrame, {
-    Size=UDim2.new(1,-20,0,80), Position=UDim2.new(0,10,0,50), BackgroundTransparency=1,
-    Text="...", TextColor3=Color3.fromRGB(220,220,220), TextScaled=true, Font=Enum.Font.Gotham,
-    TextWrapped=true, ZIndex=31,
+    Size = UDim2.new(1, -28, 0, 150), Position = UDim2.new(0, 14, 0, 62),
+    BackgroundTransparency = 1,
+    Text = "...", TextColor3 = Color3.fromRGB(215, 215, 235),
+    TextScaled = true, Font = Enum.Font.Gotham,
+    TextWrapped = true, ZIndex = 31,
+    TextYAlignment = Enum.TextYAlignment.Top,
 })
-local TutProgress = makeTL(TutorialFrame, {
-    Size=UDim2.new(0.5,0,0,22), Position=UDim2.new(0,10,1,-34), BackgroundTransparency=1,
-    Text="1 / "..#tutorialSteps, TextColor3=Color3.fromRGB(120,120,160), TextScaled=true, Font=Enum.Font.Gotham, ZIndex=31,
+
+-- Barra de progresso (dots)
+local TutDotsFrame = makeFrame(TutorialFrame, {
+    Size = UDim2.new(1, -28, 0, 10), Position = UDim2.new(0, 14, 0, 218),
+    BackgroundTransparency = 1, ZIndex = 31,
 })
-local TutNextBtn = makeTB(TutorialFrame, {
-    Size=UDim2.new(0,130,0,32), Position=UDim2.new(1,-140,1,-40),
-    BackgroundColor3=Color3.fromRGB(30,80,160), BorderSizePixel=0,
-    Text="Próximo →", TextColor3=Color3.fromRGB(180,220,255), TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=31,
-})
-round(TutNextBtn, 10)
+local tutDots = {}
+local function buildTutDots()
+    for _, d in ipairs(tutDots) do d:Destroy() end
+    tutDots = {}
+    local total = #tutorialSteps
+    local dotW  = 10
+    local gap   = 5
+    local totalW = total * (dotW + gap) - gap
+    local startX = (480 - 28 - totalW) / 2
+    for i = 1, total do
+        local dot = makeFrame(TutDotsFrame, {
+            Size = UDim2.new(0, dotW, 0, dotW),
+            Position = UDim2.new(0, startX + (i-1)*(dotW+gap), 0, 0),
+            BackgroundColor3 = Color3.fromRGB(40, 40, 70),
+            BorderSizePixel  = 0, ZIndex = 32,
+        })
+        round(dot, 5)
+        table.insert(tutDots, dot)
+    end
+end
+buildTutDots()
+
+-- Botão Pular
 local TutSkipBtn = makeTB(TutorialFrame, {
-    Size=UDim2.new(0,80,0,26), Position=UDim2.new(0,10,1,-36),
-    BackgroundColor3=Color3.fromRGB(30,30,50), BorderSizePixel=0,
-    Text="Pular", TextColor3=Color3.fromRGB(120,120,160), TextScaled=true, Font=Enum.Font.Gotham, ZIndex=31,
+    Size = UDim2.new(0, 80, 0, 30), Position = UDim2.new(0, 14, 1, -44),
+    BackgroundColor3 = Color3.fromRGB(28, 28, 50), BorderSizePixel = 0,
+    Text = "Pular", TextColor3 = Color3.fromRGB(100, 100, 140),
+    TextScaled = true, Font = Enum.Font.Gotham, ZIndex = 31,
 })
-round(TutSkipBtn, 8)
+round(TutSkipBtn, 10)
+
+-- Botão Próximo
+local TutNextBtn = makeTB(TutorialFrame, {
+    Size = UDim2.new(0, 148, 0, 36), Position = UDim2.new(1, -162, 1, -48),
+    BackgroundColor3 = Color3.fromRGB(30, 80, 200), BorderSizePixel = 0,
+    Text = "Próximo →", TextColor3 = Color3.fromRGB(200, 230, 255),
+    TextScaled = true, Font = Enum.Font.GothamBold, ZIndex = 31,
+})
+round(TutNextBtn, 12)
+stroke(TutNextBtn, Color3.fromRGB(80, 140, 255), 1.5)
 
 local function showTutStep(step)
     local s = tutorialSteps[step]
     if not s then TutorialFrame.Visible = false; return end
-    TutTitle.Text    = s.title
-    TutText.Text     = s.text
-    TutProgress.Text = step.." / "..#tutorialSteps
-    TutNextBtn.Text  = step==#tutorialSteps and "Começar! ✓" or "Próximo →"
+    TutTitle.Text = s.title
+    TutText.Text  = s.text
+    TutNextBtn.Text = step == #tutorialSteps and "🎮 Começar!" or "Próximo →"
+    -- Atualiza cor do stroke e cabeçalho
+    tutStroke.Color    = s.color
+    TutTitle.TextColor3 = s.color
+    TweenService:Create(TutHeader, TweenInfo.new(0.25), {
+        BackgroundColor3 = Color3.fromRGB(
+            math.floor(s.color.R*255*0.08),
+            math.floor(s.color.G*255*0.08),
+            math.floor(s.color.B*255*0.08)
+        )
+    }):Play()
+    TweenService:Create(TutNextBtn, TweenInfo.new(0.25), {BackgroundColor3 = Color3.fromRGB(
+        math.floor(s.color.R*255*0.25),
+        math.floor(s.color.G*255*0.25),
+        math.floor(s.color.B*255*0.25)
+    )}):Play()
+    -- Atualiza dots
+    for i, dot in ipairs(tutDots) do
+        TweenService:Create(dot, TweenInfo.new(0.2), {
+            BackgroundColor3 = i <= step and s.color or Color3.fromRGB(40, 40, 70),
+            Size = UDim2.new(0, i == step and 14 or 10, 0, i == step and 14 or 10),
+        }):Play()
+    end
 end
 
 TutNextBtn.Activated:Connect(function()
     if tutStep >= #tutorialSteps then
-        TutorialFrame.Visible = false
+        TweenService:Create(TutorialFrame, TweenInfo.new(0.3), {BackgroundTransparency=1}):Play()
+        task.delay(0.35, function() TutorialFrame.Visible = false end)
         TutorialDoneEvent:FireServer()
     else
         tutStep = tutStep + 1
@@ -1569,7 +1686,8 @@ TutNextBtn.Activated:Connect(function()
     end
 end)
 TutSkipBtn.Activated:Connect(function()
-    TutorialFrame.Visible = false
+    TweenService:Create(TutorialFrame, TweenInfo.new(0.25), {BackgroundTransparency=1}):Play()
+    task.delay(0.3, function() TutorialFrame.Visible = false end)
     TutorialDoneEvent:FireServer()
 end)
 
@@ -2036,8 +2154,13 @@ UpdateAuraRE.OnClientEvent:Connect(function(payload)
     if payload.hasSeenTutorial == false and not tutShown then
         tutShown = true
         task.delay(3.5, function()
+            tutStep = 1
             showTutStep(1)
+            TutorialFrame.BackgroundTransparency = 1
             TutorialFrame.Visible = true
+            TweenService:Create(TutorialFrame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+                BackgroundTransparency = 0.04,
+            }):Play()
         end)
     end
 end)
