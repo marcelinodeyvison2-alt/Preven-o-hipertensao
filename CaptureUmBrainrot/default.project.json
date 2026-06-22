@@ -7,46 +7,37 @@
       "$className": "ReplicatedStorage",
       "Modules": {
         "$className": "Folder",
-        "BrainrotConfig": {
-          "$path": "ReplicatedStorage/Modules/BrainrotConfig.lua"
-        },
-        "GameConfig": {
-          "$path": "ReplicatedStorage/Modules/GameConfig.lua"
-        }
+        "BrainrotConfig": { "$path": "ReplicatedStorage/Modules/BrainrotConfig.lua" },
+        "GameConfig":     { "$path": "ReplicatedStorage/Modules/GameConfig.lua" },
+        "PetConfig":      { "$path": "ReplicatedStorage/Modules/PetConfig.lua" },
+        "EventConfig":    { "$path": "ReplicatedStorage/Modules/EventConfig.lua" }
       }
     },
 
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "Setup": {
-        "$path": "ServerScriptService/Setup.server.lua"
+      "Modules": {
+        "$className": "Folder",
+        "SharedData": { "$path": "ServerScriptService/Modules/SharedData.lua" }
       },
-      "BrainrotSpawner": {
-        "$path": "ServerScriptService/BrainrotSpawner.server.lua"
-      },
-      "PlayerManager": {
-        "$path": "ServerScriptService/PlayerManager.server.lua"
-      },
-      "RankingManager": {
-        "$path": "ServerScriptService/RankingManager.server.lua"
-      }
+      "Setup":          { "$path": "ServerScriptService/Setup.server.lua" },
+      "BrainrotSpawner":{ "$path": "ServerScriptService/BrainrotSpawner.server.lua" },
+      "PlayerManager":  { "$path": "ServerScriptService/PlayerManager.server.lua" },
+      "RankingManager": { "$path": "ServerScriptService/RankingManager.server.lua" },
+      "EventManager":   { "$path": "ServerScriptService/EventManager.server.lua" },
+      "TradeManager":   { "$path": "ServerScriptService/TradeManager.server.lua" },
+      "ClanManager":    { "$path": "ServerScriptService/ClanManager.server.lua" }
     },
 
     "StarterPlayer": {
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "MainClient": {
-          "$path": "StarterPlayerScripts/MainClient.client.lua"
-        },
+        "MainClient": { "$path": "StarterPlayerScripts/MainClient.client.lua" },
         "Modules": {
           "$className": "Folder",
-          "GUIManager": {
-            "$path": "StarterPlayerScripts/Modules/GUIManager.lua"
-          },
-          "EffectsManager": {
-            "$path": "StarterPlayerScripts/Modules/EffectsManager.lua"
-          }
+          "GUIManager":     { "$path": "StarterPlayerScripts/Modules/GUIManager.lua" },
+          "EffectsManager": { "$path": "StarterPlayerScripts/Modules/EffectsManager.lua" }
         }
       }
     }

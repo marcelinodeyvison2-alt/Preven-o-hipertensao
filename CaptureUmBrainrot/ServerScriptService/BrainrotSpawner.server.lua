@@ -10,6 +10,7 @@ repeat task.wait(0.2) until ReplicatedStorage:GetAttribute("SetupComplete")
 
 local BrainrotConfig  = require(ReplicatedStorage.Modules.BrainrotConfig)
 local GameConfig      = require(ReplicatedStorage.Modules.GameConfig)
+local SharedData      = require(script.Parent.Modules.SharedData)
 
 local areasFolder     = workspace:WaitForChild("Areas")
 local brainrotsFolder = workspace:WaitForChild("ActiveBrainrots")
@@ -209,7 +210,10 @@ for areaKey, areaData in pairs(BrainrotConfig.Areas) do
         -- Ongoing top-up
         while true do
             task.wait(areaData.SpawnInterval)
-            if areaCount[areaKey] < areaData.MaxSpawns then
+            -- During events with SpawnMultiplier, try spawning extra brainrots
+            local spawnMult = (SharedData.currentEvent and SharedData.currentEvent.SpawnMultiplier) or 1
+            local cap = math.min(areaData.MaxSpawns * spawnMult, areaData.MaxSpawns * 3)
+            if areaCount[areaKey] < cap then
                 spawnOneBrainrot(areaKey, areaData)
             end
         end

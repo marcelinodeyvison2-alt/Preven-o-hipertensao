@@ -1,7 +1,6 @@
 -- PlayerManager.server.lua
--- Manages all player state: inventory, Aura, unlocked areas.
--- Listens to BrainrotCaptured BindableEvent from BrainrotSpawner.
--- Handles SellBrainrots and UnlockArea RemoteEvents from clients.
+-- Central server authority: owns all player session data.
+-- Uses SharedData as the shared session store.
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,6 +10,8 @@ repeat task.wait(0.2) until ReplicatedStorage:GetAttribute("SetupComplete")
 
 local BrainrotConfig = require(ReplicatedStorage.Modules.BrainrotConfig)
 local GameConfig     = require(ReplicatedStorage.Modules.GameConfig)
+local PetConfig      = require(ReplicatedStorage.Modules.PetConfig)
+local SharedData     = require(script.Parent.Modules.SharedData)
 
 local remotes        = ReplicatedStorage:WaitForChild("RemoteEvents")
 local bindables      = ReplicatedStorage:WaitForChild("BindableEvents")
@@ -18,44 +19,49 @@ local bindables      = ReplicatedStorage:WaitForChild("BindableEvents")
 local evCapSuccess   = remotes:WaitForChild("CaptureSuccess")
 local evNotif        = remotes:WaitForChild("Notification")
 local evSendInv      = remotes:WaitForChild("SendInventory")
-local evSendRank     = remotes:WaitForChild("SendRanking")
 local evAreaSuccess  = remotes:WaitForChild("AreaUnlockSuccess")
 local evSellReq      = remotes:WaitForChild("SellBrainrots")
 local evUnlockReq    = remotes:WaitForChild("UnlockArea")
 local evRankReq      = remotes:WaitForChild("RequestRanking")
+local evSendRank     = remotes:WaitForChild("SendRanking")
+local evPetUpdate    = remotes:WaitForChild("PetUpdate")
+local evOpenEgg      = remotes:WaitForChild("OpenPetEgg")
+local evEquipPet     = remotes:WaitForChild("EquipPet")
+local evUnequipPet   = remotes:WaitForChild("UnequipPet")
+local evRebirthUpd   = remotes:WaitForChild("RebirthUpdate")
+local evRebirthReq   = remotes:WaitForChild("RequestRebirth")
+local evClanUpd      = remotes:WaitForChild("ClanUpdate")
 
 local bindCapture     = bindables:WaitForChild("BrainrotCaptured")
 local bindDataChanged = bindables:WaitForChild("PlayerDataChanged")
 
--- DataStore (wrapped in pcall to handle Studio limitations gracefully)
+-- DataStore
 local dataStore
-local ok, err = pcall(function()
+pcall(function()
     dataStore = DataStoreService:GetDataStore(GameConfig.DataStoreName)
 end)
-if not ok then warn("[PlayerManager] DataStore unavailable:", err) end
 
--- ── In-memory session data ────────────────────────────────────────────────────
+-- ── Session schema ────────────────────────────────────────────────────────────
 
-local sessions = {}
--- sessions[userId] = {
---   aura          : number,
---   totalCaptured : number,
---   inventory     : { {Name, Rarity, Emoji, AuraValue} ... },
---   unlockedAreas : { areaKey = true },
---   rarestRarity  : string,
--- }
+local function defaultUnlocked()
+    local t = {}
+    for k, d in pairs(BrainrotConfig.Areas) do
+        if d.IsDefault then t[k] = true end
+    end
+    return t
+end
 
 local function defaultSession()
-    local unlocked = {}
-    for key, data in pairs(BrainrotConfig.Areas) do
-        if data.IsDefault then unlocked[key] = true end
-    end
     return {
         aura          = 0,
         totalCaptured = 0,
         inventory     = {},
-        unlockedAreas = unlocked,
+        unlockedAreas = defaultUnlocked(),
         rarestRarity  = "",
+        rebirthCount  = 0,
+        pets          = {},    -- list of pet names owned
+        equippedPets  = {},    -- list of pet names equipped (max 3)
+        clanName      = "",
     }
 end
 
@@ -64,290 +70,345 @@ end
 local function loadData(userId)
     if not dataStore then return defaultSession() end
     local saved
-    local ok2, err2 = pcall(function()
-        saved = dataStore:GetAsync(tostring(userId))
-    end)
-    if not ok2 then
-        warn("[PlayerManager] Load failed for", userId, err2)
-        return defaultSession()
-    end
+    pcall(function() saved = dataStore:GetAsync(tostring(userId)) end)
     if not saved then return defaultSession() end
-
-    -- Merge saved into defaults so new fields appear automatically
-    local session = defaultSession()
-    session.aura          = saved.aura          or 0
-    session.totalCaptured = saved.totalCaptured  or 0
-    session.inventory     = saved.inventory      or {}
-    session.rarestRarity  = saved.rarestRarity   or ""
+    local s = defaultSession()
+    s.aura          = saved.aura          or 0
+    s.totalCaptured = saved.totalCaptured  or 0
+    s.inventory     = saved.inventory      or {}
+    s.rarestRarity  = saved.rarestRarity   or ""
+    s.rebirthCount  = saved.rebirthCount   or 0
+    s.pets          = saved.pets           or {}
+    s.equippedPets  = saved.equippedPets   or {}
+    s.clanName      = saved.clanName       or ""
     if saved.unlockedAreas then
-        for k, v in pairs(saved.unlockedAreas) do
-            session.unlockedAreas[k] = v
-        end
+        for k, v in pairs(saved.unlockedAreas) do s.unlockedAreas[k] = v end
     end
-    return session
+    return s
 end
 
 local function saveData(userId, session)
     if not dataStore then return end
-    local ok2, err2 = pcall(function()
+    pcall(function()
         dataStore:SetAsync(tostring(userId), {
             aura          = session.aura,
             totalCaptured = session.totalCaptured,
             inventory     = session.inventory,
             unlockedAreas = session.unlockedAreas,
             rarestRarity  = session.rarestRarity,
+            rebirthCount  = session.rebirthCount,
+            pets          = session.pets,
+            equippedPets  = session.equippedPets,
+            clanName      = session.clanName,
         })
     end)
-    if not ok2 then warn("[PlayerManager] Save failed for", userId, err2) end
 end
 
 -- ── Leaderstats ───────────────────────────────────────────────────────────────
 
 local function createLeaderstats(player, session)
-    local ls = Instance.new("Folder")
-    ls.Name   = "leaderstats"
-    ls.Parent = player
-
-    local auraVal = Instance.new("IntValue")
-    auraVal.Name   = "Aura"
-    auraVal.Value  = session.aura
-    auraVal.Parent = ls
-
-    local countVal = Instance.new("IntValue")
-    countVal.Name   = "Brainrots"
-    countVal.Value  = session.totalCaptured
-    countVal.Parent = ls
-
-    return ls
+    local ls = Instance.new("Folder"); ls.Name = "leaderstats"; ls.Parent = player
+    local function iv(n, v) local x = Instance.new("IntValue"); x.Name=n; x.Value=v; x.Parent=ls; return x end
+    iv("Aura",     session.aura)
+    iv("Brainrots",session.totalCaptured)
+    iv("Rebirth",  session.rebirthCount)
 end
 
 local function updateLeaderstats(player, session)
-    local ls = player:FindFirstChild("leaderstats")
-    if not ls then return end
-    local av = ls:FindFirstChild("Aura")
-    local cv = ls:FindFirstChild("Brainrots")
-    if av then av.Value = session.aura end
-    if cv then cv.Value = session.totalCaptured end
+    local ls = player:FindFirstChild("leaderstats"); if not ls then return end
+    local function sv(n,v) local x=ls:FindFirstChild(n); if x then x.Value=v end end
+    sv("Aura",     session.aura)
+    sv("Brainrots",session.totalCaptured)
+    sv("Rebirth",  session.rebirthCount)
 end
 
--- ── Rarity ordering ───────────────────────────────────────────────────────────
+-- ── Rarity order helper ───────────────────────────────────────────────────────
 
 local rarityRank = {}
-for i, key in ipairs(BrainrotConfig.RarityOrder) do
-    rarityRank[key] = i
+for i, k in ipairs(BrainrotConfig.RarityOrder) do rarityRank[k] = i end
+local function isRarer(a, b) return (rarityRank[a] or 0) > (rarityRank[b] or 0) end
+
+-- ── Payload helpers ───────────────────────────────────────────────────────────
+
+local function sendInventory(player, session)
+    evSendInv:FireClient(player, session.inventory, session.unlockedAreas)
 end
 
-local function isRarer(a, b)
-    return (rarityRank[a] or 0) > (rarityRank[b] or 0)
+local function sendPetUpdate(player, session)
+    evPetUpdate:FireClient(player, session.pets, session.equippedPets)
+end
+
+local function sendRebirthUpdate(player, session)
+    local cost = math.floor(100000 * (5 ^ session.rebirthCount))
+    local mult = SharedData.totalAuraMultiplier(session)
+    evRebirthUpd:FireClient(player, session.rebirthCount, cost, session.aura, mult)
 end
 
 -- ── Player join / leave ───────────────────────────────────────────────────────
 
 local function onPlayerAdded(player)
     local session = loadData(player.UserId)
-    sessions[player.UserId] = session
-
+    SharedData.sessions[player.UserId] = session
     createLeaderstats(player, session)
 
-    -- Push initial inventory to client (may arrive before GUI is ready; client buffers it)
     task.delay(3, function()
-        if player.Parent then
-            evSendInv:FireClient(player, session.inventory, session.unlockedAreas)
+        if not player.Parent then return end
+        sendInventory(player, session)
+        sendPetUpdate(player, session)
+        sendRebirthUpdate(player, session)
+        if session.clanName ~= "" then
+            evClanUpd:FireClient(player, SharedData.clans[session.clanName])
         end
     end)
-
-    bindDataChanged:Fire()
-end
-
-local function onPlayerRemoving(player)
-    local session = sessions[player.UserId]
-    if session then
-        saveData(player.UserId, session)
-        sessions[player.UserId] = nil
-    end
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)
-Players.PlayerRemoving:Connect(onPlayerRemoving)
-
--- Handle players already in game (Studio Play Solo)
-for _, player in ipairs(Players:GetPlayers()) do
-    task.spawn(onPlayerAdded, player)
-end
+Players.PlayerRemoving:Connect(function(player)
+    local session = SharedData.sessions[player.UserId]
+    if session then
+        saveData(player.UserId, session)
+        SharedData.sessions[player.UserId] = nil
+    end
+end)
+for _, p in ipairs(Players:GetPlayers()) do task.spawn(onPlayerAdded, p) end
 
 -- ── Capture handler ───────────────────────────────────────────────────────────
 
 bindCapture.Event:Connect(function(player, brainrotData)
-    local session = sessions[player.UserId]
+    local session = SharedData.sessions[player.UserId]
     if not session then return end
 
-    -- Validate area access
     if not session.unlockedAreas[brainrotData.AreaKey] then
-        evNotif:FireClient(player, {
-            type    = GameConfig.NotifType.Error,
-            message = "🔒 Desbloqueie esta área primeiro!",
-        })
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Error, message="🔒 Desbloqueie esta area primeiro!" })
         return
     end
-
-    -- Inventory cap
     if #session.inventory >= GameConfig.MaxInventorySize then
-        evNotif:FireClient(player, {
-            type    = GameConfig.NotifType.Error,
-            message = "📦 Inventário cheio! Venda alguns Brainrots.",
-        })
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Error, message="📦 Inventario cheio! Venda alguns Brainrots." })
         return
     end
 
-    -- Add to inventory
+    -- Apply Aura multiplier to capture value
+    local baseAura  = brainrotData.AuraValue
+    local mult      = SharedData.totalAuraMultiplier(session)
+    local finalAura = math.floor(baseAura * mult)
+
     local entry = {
-        Name     = brainrotData.Name,
-        Rarity   = brainrotData.Rarity,
-        Emoji    = brainrotData.Emoji,
-        AuraValue = brainrotData.AuraValue,
+        Name      = brainrotData.Name,
+        Rarity    = brainrotData.Rarity,
+        Emoji     = brainrotData.Emoji,
+        AuraValue = finalAura,
     }
     table.insert(session.inventory, entry)
     session.totalCaptured = session.totalCaptured + 1
-
-    -- Track rarest
     if isRarer(brainrotData.Rarity, session.rarestRarity) then
         session.rarestRarity = brainrotData.Rarity
     end
 
     updateLeaderstats(player, session)
-
-    -- Notify client for animation / sound
     evCapSuccess:FireClient(player, entry)
-
-    -- Sync inventory
-    evSendInv:FireClient(player, session.inventory, session.unlockedAreas)
-
+    sendInventory(player, session)
     bindDataChanged:Fire()
 end)
 
 -- ── Sell handler ──────────────────────────────────────────────────────────────
 
 evSellReq.OnServerEvent:Connect(function(player, rarityFilter)
-    -- rarityFilter = nil means sell ALL, or a rarity string to sell that rarity only
-    local session = sessions[player.UserId]
+    local session = SharedData.sessions[player.UserId]
     if not session then return end
 
-    local totalGained = 0
-    local soldCount   = 0
-    local newInventory = {}
+    local gained, count = 0, 0
+    local newInv = {}
+    local luck   = SharedData.totalLuckBonus(session)
 
     for _, item in ipairs(session.inventory) do
-        local shouldSell = (rarityFilter == nil) or (item.Rarity == rarityFilter)
-        if shouldSell then
-            totalGained = totalGained + item.AuraValue
-            soldCount   = soldCount + 1
+        local sell = (rarityFilter == nil) or (item.Rarity == rarityFilter)
+        if sell then
+            local value = item.AuraValue
+            -- Luck: chance to double sell value
+            if math.random() < luck then value = value * 2 end
+            gained = gained + value
+            count  = count  + 1
         else
-            newInventory[#newInventory + 1] = item
+            newInv[#newInv+1] = item
         end
     end
 
-    if soldCount == 0 then
-        evNotif:FireClient(player, {
-            type    = GameConfig.NotifType.Error,
-            message = "Você não tem Brainrots para vender!",
-        })
+    if count == 0 then
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Error, message="Voce nao tem Brainrots para vender!" })
         return
     end
 
-    session.inventory = newInventory
-    session.aura      = session.aura + totalGained
-
+    session.inventory = newInv
+    session.aura      = session.aura + gained
     updateLeaderstats(player, session)
-    evSendInv:FireClient(player, session.inventory, session.unlockedAreas)
-    evNotif:FireClient(player, {
-        type    = GameConfig.NotifType.Success,
-        message = "💰 Vendeu " .. soldCount .. " Brainrot(s) por " .. totalGained .. " Aura!",
-    })
-
+    sendInventory(player, session)
+    evNotif:FireClient(player, { type=GameConfig.NotifType.Success,
+        message = "💰 Vendeu "..count.." item(s) por "..gained.." Aura!" })
     bindDataChanged:Fire()
 end)
 
 -- ── Area unlock handler ───────────────────────────────────────────────────────
 
 evUnlockReq.OnServerEvent:Connect(function(player, areaKey)
-    -- Sanitize input
     if type(areaKey) ~= "string" then return end
-
     local areaData = BrainrotConfig.Areas[areaKey]
     if not areaData then return end
 
-    local session = sessions[player.UserId]
+    local session = SharedData.sessions[player.UserId]
     if not session then return end
 
     if session.unlockedAreas[areaKey] then
-        evNotif:FireClient(player, {
-            type    = GameConfig.NotifType.Info,
-            message = "✅ Esta área já está desbloqueada!",
-        })
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Info, message="✅ Area ja desbloqueada!" })
         return
     end
-
     if session.aura < areaData.UnlockCost then
-        evNotif:FireClient(player, {
-            type    = GameConfig.NotifType.Error,
-            message = "❌ Aura insuficiente! Você precisa de " .. areaData.UnlockCost .. " Aura.",
-        })
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Error,
+            message="❌ Aura insuficiente! Precisa de "..areaData.UnlockCost.." Aura." })
         return
     end
 
     session.aura = session.aura - areaData.UnlockCost
     session.unlockedAreas[areaKey] = true
-
     updateLeaderstats(player, session)
-    evSendInv:FireClient(player, session.inventory, session.unlockedAreas)
+    sendInventory(player, session)
     evAreaSuccess:FireClient(player, areaKey, areaData.DisplayName)
-    evNotif:FireClient(player, {
-        type    = GameConfig.NotifType.Success,
-        message = "🎉 Área desbloqueada: " .. areaData.DisplayName .. "!",
-    })
-
+    evNotif:FireClient(player, { type=GameConfig.NotifType.Success,
+        message="🎉 Area desbloqueada: "..areaData.DisplayName.."!" })
     bindDataChanged:Fire()
 end)
 
--- ── Ranking request ───────────────────────────────────────────────────────────
+-- ── Pet egg handler ───────────────────────────────────────────────────────────
 
-evRankReq.OnServerEvent:Connect(function(player)
-    local ranking = {}
-    for userId, session in pairs(sessions) do
+evOpenEgg.OnServerEvent:Connect(function(player)
+    local session = SharedData.sessions[player.UserId]
+    if not session then return end
+
+    if session.aura < PetConfig.EggCost then
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Error,
+            message="❌ Precisa de "..PetConfig.EggCost.." Aura para abrir um ovo!" })
+        return
+    end
+
+    session.aura = session.aura - PetConfig.EggCost
+    local rarity = PetConfig.rollRarity()
+    local pet    = PetConfig.randomPetOfRarity(rarity)
+
+    table.insert(session.pets, pet.Name)
+    updateLeaderstats(player, session)
+    sendPetUpdate(player, session)
+    evNotif:FireClient(player, { type=GameConfig.NotifType.Rare,
+        message="🥚 Voce ganhou: "..pet.Emoji.." "..pet.Name.." ("..rarity..")!" })
+    bindDataChanged:Fire()
+end)
+
+-- ── Equip / Unequip pet ───────────────────────────────────────────────────────
+
+evEquipPet.OnServerEvent:Connect(function(player, petName)
+    if type(petName) ~= "string" then return end
+    local session = SharedData.sessions[player.UserId]
+    if not session then return end
+
+    -- Check ownership
+    local owns = false
+    for _, p in ipairs(session.pets) do if p == petName then owns=true; break end end
+    if not owns then return end
+
+    -- Already equipped?
+    for _, p in ipairs(session.equippedPets) do
+        if p == petName then
+            evNotif:FireClient(player, { type=GameConfig.NotifType.Info, message="Pet ja equipado!" })
+            return
+        end
+    end
+
+    if #session.equippedPets >= PetConfig.MaxEquipped then
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Error,
+            message="❌ Slots cheios! Desequipe um pet primeiro." })
+        return
+    end
+
+    table.insert(session.equippedPets, petName)
+    sendPetUpdate(player, session)
+    local pet = PetConfig.getPetByName(petName)
+    evNotif:FireClient(player, { type=GameConfig.NotifType.Success,
+        message="🐾 "..( pet and pet.Emoji or "")..petName.." equipado!" })
+end)
+
+evUnequipPet.OnServerEvent:Connect(function(player, petName)
+    if type(petName) ~= "string" then return end
+    local session = SharedData.sessions[player.UserId]
+    if not session then return end
+
+    for i, p in ipairs(session.equippedPets) do
+        if p == petName then
+            table.remove(session.equippedPets, i)
+            sendPetUpdate(player, session)
+            evNotif:FireClient(player, { type=GameConfig.NotifType.Info, message="Pet desequipado." })
+            return
+        end
+    end
+end)
+
+-- ── Rebirth handler ───────────────────────────────────────────────────────────
+
+evRebirthReq.OnServerEvent:Connect(function(player)
+    local session = SharedData.sessions[player.UserId]
+    if not session then return end
+
+    local cost = math.floor(100000 * (5 ^ session.rebirthCount))
+    if session.aura < cost then
+        evNotif:FireClient(player, { type=GameConfig.NotifType.Error,
+            message="❌ Precisa de "..cost.." Aura para renascer!" })
+        return
+    end
+
+    -- Reset but keep pets, clans, and rebirth count
+    session.rebirthCount  = session.rebirthCount + 1
+    session.aura          = 0
+    session.inventory     = {}
+    session.unlockedAreas = defaultUnlocked()
+    session.totalCaptured = 0
+    session.rarestRarity  = ""
+
+    updateLeaderstats(player, session)
+    sendInventory(player, session)
+    sendPetUpdate(player, session)
+    sendRebirthUpdate(player, session)
+    evNotif:FireClient(player, { type=GameConfig.NotifType.Rare,
+        message="♻️ Renascimento "..session.rebirthCount.."! Multiplicador: x"
+            ..string.format("%.1f", 1 + 0.5*session.rebirthCount) })
+    bindDataChanged:Fire()
+end)
+
+-- ── Ranking broadcast ─────────────────────────────────────────────────────────
+
+local function buildRanking()
+    local rows = {}
+    for userId, session in pairs(SharedData.sessions) do
         local p = Players:GetPlayerByUserId(userId)
         if p then
-            ranking[#ranking + 1] = {
-                Name          = p.Name,
-                Aura          = session.aura,
+            rows[#rows+1] = {
+                Name           = p.Name,
+                Aura           = session.aura,
                 TotalBrainrots = session.totalCaptured,
-                RarestRarity  = session.rarestRarity,
+                RarestRarity   = session.rarestRarity,
+                RebirthCount   = session.rebirthCount,
+                ClanName       = session.clanName,
             }
         end
     end
-    table.sort(ranking, function(a, b) return a.Aura > b.Aura end)
-    evSendRank:FireClient(player, ranking)
-end)
+    table.sort(rows, function(a,b) return a.Aura > b.Aura end)
+    return rows
+end
 
--- Broadcast ranking to all on data changes (throttled)
-local rankingTimer = 0
-local RANK_INTERVAL = GameConfig.RankingRefreshRate
+evRankReq.OnServerEvent:Connect(function(player)
+    evSendRank:FireClient(player, buildRanking())
+end)
 
 task.spawn(function()
     while true do
-        task.wait(RANK_INTERVAL)
-        local ranking = {}
-        for userId, session in pairs(sessions) do
-            local p = Players:GetPlayerByUserId(userId)
-            if p then
-                ranking[#ranking + 1] = {
-                    Name           = p.Name,
-                    Aura           = session.aura,
-                    TotalBrainrots = session.totalCaptured,
-                    RarestRarity   = session.rarestRarity,
-                }
-            end
-        end
-        table.sort(ranking, function(a, b) return a.Aura > b.Aura end)
+        task.wait(GameConfig.RankingRefreshRate)
+        local ranking = buildRanking()
         for _, p in ipairs(Players:GetPlayers()) do
             evSendRank:FireClient(p, ranking)
         end

@@ -1,6 +1,5 @@
 -- MainClient.client.lua
--- Entry point for all client-side logic.
--- Wires RemoteEvents to GUIManager and EffectsManager.
+-- Entry point: wires all RemoteEvents to GUIManager and EffectsManager.
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,94 +7,61 @@ local RunService        = game:GetService("RunService")
 
 local localPlayer = Players.LocalPlayer
 local character   = localPlayer.Character or localPlayer.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local hrp         = character:WaitForChild("HumanoidRootPart")
 
--- Lazy-load modules (they initialise their GUI on require)
 local GUIManager     = require(script.Parent.Modules.GUIManager)
 local EffectsManager = require(script.Parent.Modules.EffectsManager)
-
 local BrainrotConfig = require(ReplicatedStorage.Modules.BrainrotConfig)
 local GameConfig     = require(ReplicatedStorage.Modules.GameConfig)
 
--- Wait for server setup
 repeat task.wait(0.2) until ReplicatedStorage:GetAttribute("SetupComplete")
 
 local remotes = ReplicatedStorage:WaitForChild("RemoteEvents")
 
-local evCaptureSuccess  = remotes:WaitForChild("CaptureSuccess")
-local evNotification    = remotes:WaitForChild("Notification")
-local evSendInventory   = remotes:WaitForChild("SendInventory")
-local evSendRanking     = remotes:WaitForChild("SendRanking")
-local evAreaSuccess     = remotes:WaitForChild("AreaUnlockSuccess")
+-- ── HUD: area detection by position ─────────────────────────────────────────
 
--- ── Current area detection (client-side, position-based) ──────────────────────
-
-local function getAreaForPosition(pos)
-    for _, areaKey in ipairs(BrainrotConfig.AreaOrder) do
-        local aData = BrainrotConfig.Areas[areaKey]
-        local aPos  = aData.Position
-        local halfX = aData.Size.X / 2
-        local halfZ = aData.Size.Z / 2
-        if math.abs(pos.X - aPos.X) <= halfX and math.abs(pos.Z - aPos.Z) <= halfZ then
-            return areaKey, aData.DisplayName
+local function getAreaName(pos)
+    for _, key in ipairs(BrainrotConfig.AreaOrder) do
+        local ad = BrainrotConfig.Areas[key]
+        local ap = ad.Position
+        if math.abs(pos.X - ap.X) <= ad.Size.X/2 and math.abs(pos.Z - ap.Z) <= ad.Size.Z/2 then
+            return ad.DisplayName
         end
     end
-    return "CampoInicial", "Campo Inicial" -- fallback to hub / default
+    return "Hub Central"
 end
 
--- ── HUD area polling ──────────────────────────────────────────────────────────
-
-local lastAura     = 0
-local lastCount    = 0
-local lastAreaName = ""
-
-local function pollHUD()
-    local ls = localPlayer:FindFirstChild("leaderstats")
-    if ls then
-        local aura  = ls:FindFirstChild("Aura")    and ls.Aura.Value    or 0
-        local count = ls:FindFirstChild("Brainrots") and ls.Brainrots.Value or 0
-
-        local pos = humanoidRootPart and humanoidRootPart.Position or Vector3.new(0,0,0)
-        local _, areaName = getAreaForPosition(pos)
-
-        if aura ~= lastAura or count ~= lastCount or areaName ~= lastAreaName then
-            lastAura     = aura
-            lastCount    = count
-            lastAreaName = areaName
-            GUIManager.updateHUD(aura, count, areaName)
-        end
-    end
-end
-
-RunService.Heartbeat:Connect(function()
-    -- Throttle to every ~0.5s using an accumulator
+localPlayer.CharacterAdded:Connect(function(char)
+    character = char; hrp = char:WaitForChild("HumanoidRootPart")
 end)
 
--- Simple timer-based poll
+local lastAura, lastCount, lastArea = 0, 0, ""
 task.spawn(function()
     while true do
         task.wait(0.5)
-        pcall(pollHUD)
+        pcall(function()
+            local ls    = localPlayer:FindFirstChild("leaderstats")
+            local aura  = ls and ls:FindFirstChild("Aura")     and ls.Aura.Value     or 0
+            local count = ls and ls:FindFirstChild("Brainrots") and ls.Brainrots.Value or 0
+            local area  = hrp and getAreaName(hrp.Position) or lastArea
+            if aura ~= lastAura or count ~= lastCount or area ~= lastArea then
+                lastAura=aura; lastCount=count; lastArea=area
+                GUIManager.updateHUD(aura, count, area)
+            end
+        end)
     end
 end)
 
--- Re-link root part after respawn
-localPlayer.CharacterAdded:Connect(function(char)
-    character = char
-    humanoidRootPart = char:WaitForChild("HumanoidRootPart")
-end)
+-- ── Core game events ──────────────────────────────────────────────────────────
 
--- ── Remote event handlers ─────────────────────────────────────────────────────
-
-evCaptureSuccess.OnClientEvent:Connect(function(entry)
+remotes.CaptureSuccess.OnClientEvent:Connect(function(entry)
     GUIManager.showCapturePopup(entry)
     EffectsManager.playCaptureSound(entry.Rarity)
     EffectsManager.flashForRarity(entry.Rarity)
 end)
 
-evNotification.OnClientEvent:Connect(function(data)
+remotes.Notification.OnClientEvent:Connect(function(data)
     GUIManager.pushNotification(data)
-    -- Play sound for error/success
     if data.type == GameConfig.NotifType.Error then
         EffectsManager.playSound("Error")
     elseif data.type == GameConfig.NotifType.Success then
@@ -103,36 +69,103 @@ evNotification.OnClientEvent:Connect(function(data)
     end
 end)
 
-evSendInventory.OnClientEvent:Connect(function(inventory, unlockedAreas)
+remotes.SendInventory.OnClientEvent:Connect(function(inventory, unlockedAreas)
     GUIManager.updateInventory(inventory, unlockedAreas)
-    -- Keep HUD count in sync (in case leaderstats lags)
-    GUIManager.updateHUD(lastAura, #inventory, lastAreaName)
+    GUIManager.updateHUD(lastAura, #inventory, lastArea)
 end)
 
-evSendRanking.OnClientEvent:Connect(function(ranking)
+remotes.SendRanking.OnClientEvent:Connect(function(ranking)
     GUIManager.updateRanking(ranking)
 end)
 
-evAreaSuccess.OnClientEvent:Connect(function(areaKey, areaName)
+remotes.AreaUnlockSuccess.OnClientEvent:Connect(function(_, areaName)
     EffectsManager.playSound("AreaUnlock")
-    EffectsManager.screenFlash(Color3.fromRGB(100, 255, 150), 0.8)
-    GUIManager.pushNotification({
-        type    = GameConfig.NotifType.Success,
-        message = "🎉 " .. areaName .. " desbloqueada!",
-    })
+    EffectsManager.screenFlash(Color3.fromRGB(100,255,150), 0.8)
+    GUIManager.pushNotification({ type=GameConfig.NotifType.Success,
+        message="🎉 "..areaName.." desbloqueada!" })
 end)
 
--- ── Shop ProximityPrompt (Aura Shop in workspace) ────────────────────────────
+-- ── Pet events ────────────────────────────────────────────────────────────────
 
-local auraShop = workspace:WaitForChild("AuraShop", 15)
-if auraShop then
-    local shopPrompt = auraShop:FindFirstChildOfClass("ProximityPrompt")
-    if shopPrompt then
-        shopPrompt.Triggered:Connect(function()
-            -- Toggle sell all via RemoteEvent
-            remotes.SellBrainrots:FireServer(nil)
-        end)
+remotes.PetUpdate.OnClientEvent:Connect(function(pets, equipped)
+    GUIManager.updatePets(pets, equipped)
+end)
+
+-- ── Rebirth events ────────────────────────────────────────────────────────────
+
+remotes.RebirthUpdate.OnClientEvent:Connect(function(count, cost, aura, mult)
+    GUIManager.updateRebirth(count, cost, aura, mult)
+end)
+
+-- ── Event system events ───────────────────────────────────────────────────────
+
+remotes.EventUpdate.OnClientEvent:Connect(function(eventData)
+    GUIManager.updateEvent(eventData)
+    if eventData then
+        EffectsManager.playSound("Notification")
+        EffectsManager.screenFlash(eventData.Color or Color3.fromRGB(255,215,0), 1.0)
+        GUIManager.pushNotification({ type=GameConfig.NotifType.Rare,
+            message="🎪 Evento iniciado: "..eventData.Name.."!" })
     end
+end)
+
+-- ── Trade events ──────────────────────────────────────────────────────────────
+
+remotes.TradeRequestIncoming.OnClientEvent:Connect(function(data)
+    GUIManager.showTradeRequest(data)
+    EffectsManager.playSound("Notification")
+    -- Auto-respond UI: player can accept/decline via the trade panel that opened
+    -- For now, auto-accept after opening panel (player clicks Confirm to lock)
+    -- Actual accept/decline comes from RespondTrade button in UI
+    -- Since we opened the trade panel automatically, fire accept
+    task.delay(0.5, function()
+        remotes.RespondTrade:FireServer(data.tradeId, true)
+    end)
+end)
+
+remotes.TradeStateUpdate.OnClientEvent:Connect(function(trade)
+    GUIManager.updateTradeState(trade)
+end)
+
+remotes.TradeResult.OnClientEvent:Connect(function(success, msg)
+    GUIManager.tradeResult(success, msg)
+    if success then
+        EffectsManager.playSound("Sell")
+        EffectsManager.screenFlash(C.Success or Color3.fromRGB(50,220,100), 0.5)
+    end
+end)
+
+-- ── Clan events ───────────────────────────────────────────────────────────────
+
+remotes.ClanUpdate.OnClientEvent:Connect(function(clanData)
+    GUIManager.updateClan(clanData)
+end)
+
+remotes.ClanRankingUpdate.OnClientEvent:Connect(function(rows)
+    GUIManager.updateClanRanking(rows)
+end)
+
+-- ── Proximity prompts on hub buildings ───────────────────────────────────────
+
+local function connectPrompt(partName, action)
+    local part = workspace:WaitForChild(partName, 20)
+    if not part then return end
+    local p = part:FindFirstChildOfClass("ProximityPrompt")
+    if p then p.Triggered:Connect(action) end
 end
 
-print("[MainClient] Client ready.")
+connectPrompt("AuraShop",       function() remotes.SellBrainrots:FireServer(nil) end)
+connectPrompt("PetShop",        function() GUIManager.openEventPanel and nil
+    -- open pets via hudBtn; this triggers buy UI
+    remotes.OpenPetEgg:FireServer()
+end)
+connectPrompt("RebirthAltar",   function() remotes.RequestRebirth:FireServer() end)
+connectPrompt("ClanHall",       function()
+    -- Open clan panel
+    GUIManager.pushNotification({ type=GameConfig.NotifType.Info, message="🏛️ Abra o painel de Clãs com o botão!" })
+end)
+
+-- Reference colors for effects
+local C = GameConfig.UIColors
+
+print("[MainClient] All systems connected.")
