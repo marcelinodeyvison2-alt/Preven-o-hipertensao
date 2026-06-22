@@ -12,6 +12,7 @@ SOLsRNG-AuraRoller/
 │   ├── SetupRemoteEvents.server.lua   ← Cria RemoteEvents (rodar PRIMEIRO)
 │   ├── WorldSetup.server.lua          ← Configura mapa e Lighting
 │   ├── MainServer.server.lua          ← Lógica principal do servidor
+│   ├── AdminExecutor.server.lua       ← Executor de scripts para admins ⚡
 │   └── Modules/
 │       ├── DataManager.lua            ← DataStore (salvar/carregar dados)
 │       ├── RNGSystem.lua              ← Sistema de probabilidade
@@ -21,6 +22,7 @@ SOLsRNG-AuraRoller/
 │   └── GameConfig.lua                 ← Configuração central (auras, upgrades, etc.)
 ├── StarterPlayerScripts/
 │   ├── MainClient.client.lua          ← Script principal do cliente
+│   ├── AdminPanel.client.lua          ← UI do painel admin (F9) ⚡
 │   └── Modules/
 │       ├── UIManager.lua              ← Interface gráfica completa
 │       ├── AuraEffects.lua            ← Efeitos visuais no cliente
@@ -264,3 +266,69 @@ GameConfig.SETTINGS = {
 ---
 
 Criado com Lua para Roblox Studio.
+
+---
+
+## ⚡ Script Executor — Painel Admin
+
+Ferramenta para desenvolvedores e admins executarem comandos e scripts Lua dentro do jogo em tempo real.
+
+### Instalação
+
+1. Em **ServerScriptService**, insira um **Script** chamado `AdminExecutor` e cole o conteúdo de `AdminExecutor.server.lua`
+2. Em **StarterPlayerScripts**, insira um **LocalScript** chamado `AdminPanel` e cole o conteúdo de `AdminPanel.client.lua`
+
+### Configurando Admins
+
+Abra `AdminExecutor.server.lua` e adicione os Roblox User IDs na lista `ADMIN_IDS`:
+
+```lua
+local ADMIN_IDS = {
+    12345678, -- Seu ID aqui (roblox.com/users/SEU_ID/profile)
+    87654321, -- Outro admin
+}
+```
+
+> Em Roblox Studio todos os desenvolvedores têm acesso automático para testes.
+
+### Como Usar
+
+| Atalho | Ação |
+|--------|------|
+| `F9` | Abre / fecha o painel |
+| `Ctrl+Enter` | Executa o script digitado |
+| `↑ / ↓` | Navega no histórico de comandos |
+
+### Comandos Embutidos
+
+| Comando | Descrição |
+|---------|-----------|
+| `help` | Lista todos os comandos |
+| `players` | Mostra jogadores online com coins e gems |
+| `give_aura <jogador> <aura>` | Adiciona uma aura ao inventário |
+| `give_coins <jogador> <qtd>` | Dá moedas a um jogador |
+| `give_gems <jogador> <qtd>` | Dá gemas a um jogador |
+| `kick <jogador> [motivo]` | Expulsa um jogador |
+| `trigger_event <id>` | Aciona um evento (`double_rng`, `luxury_hour`, `mystery_box`) |
+| `get_data <jogador>` | Exibe coins, gems, spins e aura ativa |
+| `list_auras [raridade]` | Lista todas as auras disponíveis |
+| `print_inv <jogador>` | Mostra o inventário de um jogador |
+
+### Lua Direta
+
+Além dos comandos, qualquer código Lua válido é aceito:
+
+```lua
+-- Dar uma aura Epic para todos os jogadores online
+for _, p in ipairs(Players:GetPlayers()) do
+    DataManager.AddAura(p, "Galaxy")
+end
+print("Feito!")
+```
+
+```lua
+-- Ver quantos jogadores estao online
+print("Online:", #Players:GetPlayers())
+```
+
+A função `print()` envia a saída diretamente para o console do painel.
