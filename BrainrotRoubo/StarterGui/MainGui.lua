@@ -51,6 +51,11 @@ local TeamInviteRE       = RemoteFolder:WaitForChild("TeamInvite")
 local TeamAcceptEvent    = RemoteFolder:WaitForChild("TeamAccept")
 local TeamLeaveEvent     = RemoteFolder:WaitForChild("TeamLeave")
 local TeamUpdateRE       = RemoteFolder:WaitForChild("TeamUpdate")
+local LuckySpinRE        = RemoteFolder:WaitForChild("LuckySpinAvailable")
+local SpinResultRE       = RemoteFolder:WaitForChild("SpinResult")
+local ClaimSpinEvent     = RemoteFolder:WaitForChild("ClaimSpin")
+local IdleAuraRE         = RemoteFolder:WaitForChild("IdleAuraGain")
+local RareFlashRE        = RemoteFolder:WaitForChild("RareSpawnFlash")
 
 -- =====================================================
 --  HELPERS
@@ -452,20 +457,49 @@ makeTL(MiniMapPanel, {
     Size=UDim2.new(1,0,0,18), BackgroundTransparency=1, Text="MINI-MAPA",
     TextColor3=Color3.fromRGB(160,160,220), TextScaled=true, Font=Enum.Font.GothamBold,
 })
-local innerRingUI = makeFrame(MiniMapPanel, {
-    Size=UDim2.new(0,52,0,52), Position=UDim2.new(0.5,-26,0.5,-26),
-    BackgroundTransparency=1, BorderSizePixel=0,
-})
-stroke(innerRingUI, Color3.fromRGB(0,180,160), 1); round(innerRingUI, 26)
+-- Conveyor belt outline on minimap (Feature 2)
+-- Conveyor rect: world (-40,-22) to (40,22)
+local function mapConvX(wx) return MAP_MARGIN + (wx + 85) * MAP_SCALE end
+local function mapConvZ(wz) return MAP_MARGIN + (wz + 85) * MAP_SCALE end
 
+local conv_x1 = mapConvX(-40)
+local conv_x2 = mapConvX(40)
+local conv_z1 = mapConvZ(-22)
+local conv_z2 = mapConvZ(22)
+local conv_w  = conv_x2 - conv_x1
+local conv_h  = conv_z2 - conv_z1
+local convBeltColor = Color3.fromRGB(255, 160, 30)
+
+-- South edge
+makeFrame(MiniMapPanel, {
+    Size=UDim2.new(0,conv_w,0,2), Position=UDim2.new(0,conv_x1,0,conv_z1),
+    BackgroundColor3=convBeltColor, BorderSizePixel=0, ZIndex=2,
+})
+-- North edge
+makeFrame(MiniMapPanel, {
+    Size=UDim2.new(0,conv_w,0,2), Position=UDim2.new(0,conv_x1,0,conv_z2),
+    BackgroundColor3=convBeltColor, BorderSizePixel=0, ZIndex=2,
+})
+-- West edge
+makeFrame(MiniMapPanel, {
+    Size=UDim2.new(0,2,0,conv_h), Position=UDim2.new(0,conv_x1,0,conv_z1),
+    BackgroundColor3=convBeltColor, BorderSizePixel=0, ZIndex=2,
+})
+-- East edge
+makeFrame(MiniMapPanel, {
+    Size=UDim2.new(0,2,0,conv_h), Position=UDim2.new(0,conv_x2,0,conv_z1),
+    BackgroundColor3=convBeltColor, BorderSizePixel=0, ZIndex=2,
+})
+
+-- Pre-create brainrot dot pool (up to 20 dots)
 local miniDots = {}
-for i, pos in ipairs(GameConfig.BASE_POSITIONS) do
-    local px, pz = worldToMap(pos.X, pos.Z)
+for i = 1, 20 do
     local dot = makeFrame(MiniMapPanel, {
-        Size=UDim2.new(0,9,0,9), Position=UDim2.new(0,px-4,0,pz-4),
-        BackgroundColor3=Color3.fromRGB(60,60,80), BorderSizePixel=0,
+        Size=UDim2.new(0,6,0,6), Position=UDim2.new(0,0,0,0),
+        BackgroundColor3=Color3.fromRGB(255,80,80), BorderSizePixel=0, ZIndex=3, Visible=false,
     })
-    round(dot, 5); miniDots[i] = dot
+    round(dot, 3)
+    miniDots[i] = dot
 end
 local playerDot = makeFrame(MiniMapPanel, {
     Size=UDim2.new(0,10,0,10), Position=UDim2.new(0.5,-5,0.5,-5),
@@ -1232,16 +1266,17 @@ local lbTabBar = makeFrame(LBPanel, {
     Size=UDim2.new(1,0,0,36), Position=UDim2.new(0,0,0,44),
     BackgroundColor3=Color3.fromRGB(12,12,22), BorderSizePixel=0, ZIndex=9,
 })
-local function makeLBTab(text, xPos)
+local function makeLBTab(text, xPos, width)
     local b = makeTB(lbTabBar, {
-        Size=UDim2.new(0.48,0,1,-4), Position=UDim2.new(xPos,0,0,2),
+        Size=UDim2.new(width or 0.31,0,1,-4), Position=UDim2.new(xPos,0,0,2),
         BackgroundColor3=Color3.fromRGB(30,30,50), BorderSizePixel=0,
         Text=text, TextColor3=Color3.fromRGB(160,160,200), TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=10,
     })
     round(b, 8); return b
 end
-local LBTabRB  = makeLBTab("Rebirths",  0.01)
-local LBTabST  = makeLBTab("Roubados",  0.51)
+local LBTabRB  = makeLBTab("Rebirths",  0.01, 0.31)
+local LBTabST  = makeLBTab("Roubados",  0.34, 0.31)
+local LBTabSeason = makeLBTab("🌟 Temporada", 0.67, 0.32)
 
 local LBScroll = makeScroll(LBPanel, {
     Size=UDim2.new(1,-12,1,-90), Position=UDim2.new(0,6,0,86),
@@ -1251,7 +1286,7 @@ local LBScroll = makeScroll(LBPanel, {
 local lbLayout = listLayout(LBScroll, 3)
 local lbRows = {}
 local currentLBTab = "rebirths"
-local lbData = {rebirths={}, stolen={}}
+local lbData = {rebirths={}, stolen={}, season={}}
 
 local function buildLBUI()
     for _, r in pairs(lbRows) do r:Destroy() end; lbRows = {}
@@ -1280,21 +1315,27 @@ end
 
 local function switchLBTab(tab)
     currentLBTab = tab
-    LBTabRB.BackgroundColor3 = (tab=="rebirths") and Color3.fromRGB(80,50,20) or Color3.fromRGB(30,30,50)
-    LBTabST.BackgroundColor3 = (tab=="stolen")   and Color3.fromRGB(80,50,20) or Color3.fromRGB(30,30,50)
+    LBTabRB.BackgroundColor3     = (tab=="rebirths") and Color3.fromRGB(80,50,20) or Color3.fromRGB(30,30,50)
+    LBTabST.BackgroundColor3     = (tab=="stolen")   and Color3.fromRGB(80,50,20) or Color3.fromRGB(30,30,50)
+    LBTabSeason.BackgroundColor3 = (tab=="season")   and Color3.fromRGB(30,60,20) or Color3.fromRGB(30,30,50)
     buildLBUI()
 end
 
-LBTabRB.Activated:Connect(function() switchLBTab("rebirths") end)
-LBTabST.Activated:Connect(function() switchLBTab("stolen") end)
+LBTabRB.Activated:Connect(function()     switchLBTab("rebirths") end)
+LBTabST.Activated:Connect(function()     switchLBTab("stolen")   end)
+LBTabSeason.Activated:Connect(function() switchLBTab("season")   end)
 CloseLBBtn.Activated:Connect(function() LBPanel.Visible = false end)
 LBBtn.Activated:Connect(function()
     LBPanel.Visible = not LBPanel.Visible
     if LBPanel.Visible then
         -- Try to fetch fresh
         task.spawn(function()
-            local ok, res = pcall(function() return GetLeaderboardRF:InvokeServer() end)
-            if ok and res then lbData = res; buildLBUI() end
+            local ok, res = pcall(function() return GetLeaderboardRF:InvokeServer(currentLBTab) end)
+            if ok and res then
+                if res.data   then lbData[currentLBTab] = res.data end
+                if res.season then lbData.season = res.season end
+                buildLBUI()
+            end
         end)
     end
 end)
@@ -1763,18 +1804,22 @@ BattlepassUpdateRE.OnClientEvent:Connect(function(bp)
 end)
 
 LeaderboardRE.OnClientEvent:Connect(function(data)
-    lbData = data or {rebirths={}, stolen={}}
+    if type(data) == "table" then
+        if data.data then
+            -- new format with season
+            lbData[currentLBTab] = data.data
+            if data.season then lbData.season = data.season end
+        else
+            -- legacy format {rebirths=..., stolen=...}
+            lbData = { rebirths=data.rebirths or {}, stolen=data.stolen or {}, season=lbData.season or {} }
+        end
+    end
     if LBPanel.Visible then buildLBUI() end
 end)
 
 BiomeUpdateRE.OnClientEvent:Connect(function(innerBases)
     showNotification("🌀 Zona Épica rotacionou! Novas bases: "..table.concat(innerBases,", "), Color3.fromRGB(0,200,180))
-    -- Update minimap highlight
-    for i, dot in pairs(miniDots) do
-        local isInner = false
-        for _, idx in ipairs(innerBases) do if idx==i then isInner=true; break end end
-        dot.BackgroundColor3 = isInner and Color3.fromRGB(0,200,180) or Color3.fromRGB(60,60,80)
-    end
+    -- miniDots is now the brainrot pool, no base highlighting needed
 end)
 
 EventUpdateRE.OnClientEvent:Connect(function(eventData)
@@ -1900,11 +1945,22 @@ RunService.Heartbeat:Connect(function(dt)
     local px, pz = worldToMap(root.Position.X, root.Position.Z)
     playerDot.Position = UDim2.new(0,math.clamp(px-5,0,MAP_SIZE-10), 0,math.clamp(pz-5,0,MAP_SIZE-10))
 
-    for i, dot in pairs(miniDots) do
-        local basePart = workspace:FindFirstChild("Base_"..i)
-        if basePart then
-            local ind = basePart:FindFirstChild("Indicator")
-            if ind then dot.BackgroundColor3 = ind.Color end
+    -- Update brainrot dots on minimap (Feature 2)
+    do
+        local brainrotsF = workspace:FindFirstChild("Brainrots")
+        local parts = brainrotsF and brainrotsF:GetChildren() or {}
+        for i, dot in ipairs(miniDots) do
+            local part = parts[i]
+            if part and part:IsA("BasePart") then
+                local bpx, bpz = worldToMap(part.Position.X, part.Position.Z)
+                dot.Position = UDim2.new(0, math.clamp(bpx-3, 0, MAP_SIZE-6), 0, math.clamp(bpz-3, 0, MAP_SIZE-6))
+                local meta = part:FindFirstChild("Meta")
+                local rarity = meta and meta:FindFirstChild("Rarity") and meta.Rarity.Value or "Comum"
+                dot.BackgroundColor3 = GameConfig.RARITY_COLORS[rarity] or Color3.fromRGB(255,80,80)
+                dot.Visible = true
+            else
+                dot.Visible = false
+            end
         end
     end
 
@@ -1966,6 +2022,141 @@ RunService.Heartbeat:Connect(function(dt)
             luaPulseT=0; stealStroke.Color=Color3.fromRGB(255,255,255); stealStroke.Thickness=1.5
         end
     end
+end)
+
+-- =====================================================
+--  FEATURE 3: RareFlashRE handler
+-- =====================================================
+RareFlashRE.OnClientEvent:Connect(function(rarity, rarColor, rank)
+    -- Screen flash overlay
+    local flash = Instance.new("Frame")
+    flash.Size = UDim2.new(1,0,1,0)
+    flash.BackgroundColor3 = rarColor
+    flash.BackgroundTransparency = 0.6
+    flash.BorderSizePixel = 0
+    flash.ZIndex = 20
+    flash.Parent = ScreenGui
+    local t1 = TweenService:Create(flash, TweenInfo.new(0.15), {BackgroundTransparency=0.85})
+    local t2 = TweenService:Create(flash, TweenInfo.new(0.6), {BackgroundTransparency=1})
+    t1:Play()
+    t1.Completed:Connect(function() t2:Play() end)
+    t2.Completed:Connect(function() flash:Destroy() end)
+    -- Camera shake intensity based on rank
+    local rankNum = (type(rank)=="number") and rank or 7
+    local shakeMag = 0.4 + (rankNum - 7) * 0.15
+    cameraShake(1.8, math.min(shakeMag, 1.2))
+    -- Play sound
+    pcall(function()
+        if rankNum >= 9 then sfxPrestige:Play()
+        else sfxLua:Play() end
+    end)
+end)
+
+-- =====================================================
+--  FEATURE 5: LUCKY SPIN PANEL
+-- =====================================================
+local SpinPanel = makeFrame(ScreenGui, {
+    Size=UDim2.new(0,380,0,340), Position=UDim2.new(0.5,-190,0.5,-170),
+    BackgroundColor3=Color3.fromRGB(8,5,20), BorderSizePixel=0, Visible=false, ZIndex=15,
+})
+round(SpinPanel, 16); stroke(SpinPanel, Color3.fromRGB(255,215,0), 2.5)
+
+makeTL(SpinPanel, {
+    Size=UDim2.new(1,0,0,46), BackgroundColor3=Color3.fromRGB(30,20,5), BorderSizePixel=0,
+    Text="🎰  ROLETA DA SORTE!", TextColor3=Color3.fromRGB(255,215,0), TextScaled=true,
+    Font=Enum.Font.GothamBold, ZIndex=16,
+})
+
+makeTL(SpinPanel, {
+    Size=UDim2.new(1,0,0,28), Position=UDim2.new(0,0,0,50),
+    BackgroundTransparency=1, Text="A cada 20 roubos você ganha uma rodada!",
+    TextColor3=Color3.fromRGB(180,180,220), TextScaled=true, Font=Enum.Font.Gotham, ZIndex=16,
+})
+
+-- Display of rewards
+local spinRewardFrame = makeFrame(SpinPanel, {
+    Size=UDim2.new(0.9,0,0,160), Position=UDim2.new(0.05,0,0,85),
+    BackgroundColor3=Color3.fromRGB(12,8,28), BorderSizePixel=0, ZIndex=16,
+})
+round(spinRewardFrame, 8)
+
+local spinRewardLayout = Instance.new("UIGridLayout")
+spinRewardLayout.CellSize=UDim2.new(0.33,0,0,50); spinRewardLayout.CellPadding=UDim2.new(0,3,0,3)
+spinRewardLayout.SortOrder=Enum.SortOrder.LayoutOrder; spinRewardLayout.Parent=spinRewardFrame
+
+local spinSlotLabels = {}
+for i, rew in ipairs(GameConfig.LUCKY_SPIN_REWARDS) do
+    local slot = makeFrame(spinRewardFrame, {
+        BackgroundColor3=Color3.fromRGB(20,14,40), BorderSizePixel=0, ZIndex=17, LayoutOrder=i,
+    })
+    round(slot, 6)
+    makeTL(slot, {
+        Size=UDim2.new(1,0,1,0), BackgroundTransparency=1,
+        Text=rew.name, TextColor3=rew.color, TextScaled=true,
+        Font=Enum.Font.GothamBold, ZIndex=18,
+    })
+    spinSlotLabels[i] = slot
+end
+
+local SpinBtn = makeTB(SpinPanel, {
+    Size=UDim2.new(0.7,0,0,46), Position=UDim2.new(0.15,0,0,255),
+    BackgroundColor3=Color3.fromRGB(200,150,0), BorderSizePixel=0,
+    Text="🎰  GIRAR AGORA!", TextColor3=Color3.fromRGB(10,6,0),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=16,
+})
+round(SpinBtn, 12)
+
+local spinResultLbl = makeTL(SpinPanel, {
+    Size=UDim2.new(0.9,0,0,32), Position=UDim2.new(0.05,0,0,307),
+    BackgroundTransparency=1, Text="", TextColor3=Color3.fromRGB(255,255,255),
+    TextScaled=true, Font=Enum.Font.GothamBold, ZIndex=16,
+})
+
+SpinBtn.Activated:Connect(function()
+    SpinBtn.Active = false
+    SpinBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    SpinBtn.Text = "Girando..."
+    ClaimSpinEvent:FireServer()
+end)
+
+LuckySpinRE.OnClientEvent:Connect(function()
+    SpinPanel.Visible = true
+    SpinBtn.Active = true
+    SpinBtn.BackgroundColor3 = Color3.fromRGB(200,150,0)
+    SpinBtn.Text = "🎰  GIRAR AGORA!"
+    spinResultLbl.Text = ""
+    -- Animate available slots
+    for i, slot in ipairs(spinSlotLabels) do
+        task.delay((i-1)*0.05, function()
+            TweenService:Create(slot, TweenInfo.new(0.2), {BackgroundColor3=Color3.fromRGB(40,25,70)}):Play()
+        end)
+    end
+    pcall(function() sfxAchiev:Play() end)
+end)
+
+SpinResultRE.OnClientEvent:Connect(function(reward)
+    if not reward then return end
+    spinResultLbl.Text = "🎉 Você ganhou: " .. (reward.name or "?")
+    spinResultLbl.TextColor3 = reward.color or Color3.fromRGB(255,255,255)
+    -- Highlight winning slot
+    for i, rew in ipairs(GameConfig.LUCKY_SPIN_REWARDS) do
+        if rew.name == reward.name then
+            TweenService:Create(spinSlotLabels[i], TweenInfo.new(0.3), {BackgroundColor3=Color3.fromRGB(80,60,10)}):Play()
+        end
+    end
+    task.delay(4, function() SpinPanel.Visible = false end)
+    pcall(function() sfxPrestige:Play() end)
+end)
+
+-- =====================================================
+--  FEATURE 7: IdleAuraRE handler
+-- =====================================================
+IdleAuraRE.OnClientEvent:Connect(function(auraGain, offlineMinutes)
+    local timeStr = offlineMinutes >= 60 and string.format("%.1fh", offlineMinutes/60) or (offlineMinutes.."min")
+    showNotification(
+        string.format("💤 Você ficou %s offline — ganhou %s aura passiva!", timeStr, formatNum(auraGain)),
+        Color3.fromRGB(100, 200, 255), false
+    )
 end)
 
 -- NPC Vendedor ProximityPrompt listener

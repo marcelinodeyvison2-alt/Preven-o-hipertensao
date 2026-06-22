@@ -809,4 +809,121 @@ local catoLbl = Instance.new("TextLabel"); catoLbl.Size=UDim2.new(1,0,1,0); cato
 catoLbl.Text="🐱 Gato Místico"; catoLbl.TextColor3=Color3.fromRGB(220,160,255); catoLbl.TextScaled=true
 catoLbl.Font=Enum.Font.GothamBold; catoLbl.TextStrokeTransparency=0; catoLbl.TextStrokeColor3=Color3.fromRGB(0,0,0); catoLbl.Parent=catoBB
 
+-- =====================================================
+--  LEADERBOARD 3D NO MAPA (Feature 1)
+-- =====================================================
+local function makeWorldLeaderboard(boardName, posX, faceDir)
+    -- Support poles
+    makePart({ Name="LBPole1", Size=Vector3.new(1.2,18,1.2),
+        Position=Vector3.new(posX, 9, -8),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic })
+    makePart({ Name="LBPole2", Size=Vector3.new(1.2,18,1.2),
+        Position=Vector3.new(posX, 9, 8),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic })
+    -- Crossbar
+    makePart({ Name="LBCrossbar", Size=Vector3.new(17.6,0.8,0.8),
+        Position=Vector3.new(posX, 18.4, 0),
+        BrickColor=BrickColor.new("Dark stone grey"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+    -- Panel
+    local panel = makePart({ Name=boardName, Size=Vector3.new(0.65,8.5,18.5),
+        Position=Vector3.new(posX, 15, 0),
+        BrickColor=BrickColor.new("Really black"), Material=Enum.Material.SmoothPlastic, CanCollide=false })
+
+    -- SurfaceGui
+    local sg = Instance.new("SurfaceGui")
+    sg.Face   = faceDir
+    sg.Parent = panel
+
+    -- Background frame
+    local bg = Instance.new("Frame")
+    bg.Name             = "LBBg"
+    bg.Size             = UDim2.new(1,0,1,0)
+    bg.BackgroundColor3 = Color3.fromRGB(4,4,20)
+    bg.BorderSizePixel  = 0
+    bg.Parent           = sg
+
+    -- Title label
+    local titleLbl = Instance.new("TextLabel")
+    titleLbl.Name                   = "LBTitle"
+    titleLbl.Size                   = UDim2.new(1,0,0.14,0)
+    titleLbl.BackgroundColor3       = Color3.fromRGB(12,10,3)
+    titleLbl.Text                   = "🏆 TOP AURA AO VIVO"
+    titleLbl.TextColor3             = Color3.fromRGB(255,215,0)
+    titleLbl.TextScaled             = true
+    titleLbl.Font                   = Enum.Font.GothamBold
+    titleLbl.BorderSizePixel        = 0
+    titleLbl.Parent                 = bg
+
+    -- Rank colors
+    local rankColors = {
+        Color3.fromRGB(255,215,0),   -- 1st gold
+        Color3.fromRGB(192,192,192), -- 2nd silver
+        Color3.fromRGB(205,127,50),  -- 3rd bronze
+        Color3.fromRGB(200,200,200), -- 4th
+        Color3.fromRGB(200,200,200), -- 5th
+    }
+    local rankLabels = {"1°","2°","3°","4°","5°"}
+
+    -- 5 row frames
+    for k = 1, 5 do
+        local row = Instance.new("Frame")
+        row.Name             = "LBRow_"..k
+        row.Size             = UDim2.new(1,0,0.16,0)
+        row.Position         = UDim2.new(0,0,0.14+(k-1)*0.16,0)
+        row.BackgroundColor3 = (k%2==0) and Color3.fromRGB(8,8,28) or Color3.fromRGB(5,5,18)
+        row.BorderSizePixel  = 0
+        row.Parent           = bg
+
+        -- Rank number
+        local rankNum = Instance.new("TextLabel")
+        rankNum.Name                   = "RankNum"
+        rankNum.Size                   = UDim2.new(0.12,0,1,0)
+        rankNum.BackgroundTransparency = 1
+        rankNum.Text                   = rankLabels[k]
+        rankNum.TextColor3             = rankColors[k]
+        rankNum.TextScaled             = true
+        rankNum.Font                   = Enum.Font.GothamBold
+        rankNum.Parent                 = row
+
+        -- Player name
+        local playerName = Instance.new("TextLabel")
+        playerName.Name                   = "PlayerName"
+        playerName.Size                   = UDim2.new(0.55,0,1,0)
+        playerName.Position               = UDim2.new(0.13,0,0,0)
+        playerName.BackgroundTransparency = 1
+        playerName.Text                   = "---"
+        playerName.TextColor3             = Color3.fromRGB(220,220,220)
+        playerName.TextScaled             = true
+        playerName.Font                   = Enum.Font.Gotham
+        playerName.TextXAlignment         = Enum.TextXAlignment.Left
+        playerName.Parent                 = row
+
+        -- Aura amount
+        local auraAmt = Instance.new("TextLabel")
+        auraAmt.Name                   = "AuraAmt"
+        auraAmt.Size                   = UDim2.new(0.32,0,1,0)
+        auraAmt.Position               = UDim2.new(0.67,0,0,0)
+        auraAmt.BackgroundTransparency = 1
+        auraAmt.Text                   = "0"
+        auraAmt.TextColor3             = Color3.fromRGB(255,160,50)
+        auraAmt.TextScaled             = true
+        auraAmt.Font                   = Enum.Font.GothamBold
+        auraAmt.TextXAlignment         = Enum.TextXAlignment.Right
+        auraAmt.Parent                 = row
+    end
+
+    -- Neon borders (top and bottom)
+    makePart({ Name="LBBorderTop", Size=Vector3.new(0.1,0.35,19.2),
+        Position=Vector3.new(posX, 19.6, 0),
+        BrickColor=BrickColor.new("Bright yellow"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.2 })
+    makePart({ Name="LBBorderBot", Size=Vector3.new(0.1,0.35,19.2),
+        Position=Vector3.new(posX, 10.5, 0),
+        BrickColor=BrickColor.new("Bright yellow"), Material=Enum.Material.Neon,
+        CanCollide=false, CastShadow=false, Transparency=0.2 })
+end
+
+makeWorldLeaderboard("WorldLeaderboard",     minX-13.5, Enum.NormalId.Right)
+makeWorldLeaderboard("WorldLeaderboardEast",  maxX+13.5, Enum.NormalId.Left)
+
 print("[BrainrotRoubo] Mapa COMPLETO gerado: esteira central com " .. #GameConfig.CONVEYOR_WAYPOINTS .. " waypoints, NPC Zé das Upgrades, pets e decorações!")
