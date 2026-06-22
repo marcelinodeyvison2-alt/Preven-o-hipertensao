@@ -132,6 +132,7 @@ GameConfig.LUA_DE_SANGUE_INTERVAL = 10000  -- a cada N brainrots spawned no serv
 -- =====================================================
 --  POSIÇÕES DAS BASES (12 ao total)
 --  X e Z em studs; Y = topo da base (aprox. 1.5)
+--  LEGADO: não usado no sistema de esteira atual
 -- =====================================================
 GameConfig.BASE_POSITIONS = {
     -- Anel externo (raio 85)
@@ -151,6 +152,7 @@ GameConfig.BASE_POSITIONS = {
 }
 
 -- Nomes temáticos de cada base (mesmo índice de BASE_POSITIONS)
+-- LEGADO: não usado no sistema de esteira atual
 GameConfig.BASE_NAMES = {
     "Base Leste",     "Base Nordeste",  "Base Norte",     "Base Noroeste",
     "Base Oeste",     "Base Sudoeste",  "Base Sul",       "Base Sudeste",
@@ -170,8 +172,12 @@ GameConfig.REBIRTH_COST_FRACTION = 0.8
 -- =====================================================
 GameConfig.STEAL_RANGE       = 18
 GameConfig.MAX_BRAINROTS     = 20
-GameConfig.BRAINROT_LIFETIME = 50   -- legado (não usado no sistema de esteira)
-GameConfig.SPAWN_INTERVAL    = 3.0
+-- LEGADO: não usado na esteira
+GameConfig.BRAINROT_LIFETIME = 50
+-- GameConfig.SPAWN_INTERVAL    = 3.0  -- LEGADO: substituído por spawn dinâmico
+GameConfig.SPAWN_INTERVAL_BASE   = 3.0  -- segundos base (1 jogador)
+GameConfig.SPAWN_INTERVAL_MIN    = 1.2  -- mínimo (servidor cheio)
+GameConfig.SPAWN_INTERVAL_SCALE  = 0.15 -- redução por jogador extra
 
 -- =====================================================
 --  UPGRADES (loja de aura)
@@ -229,12 +235,15 @@ GameConfig.PETS = {
     { id="corvo",    name="Corvo das Sombras", icon="🐦", cost=80000,   auraBonus=0,    rarityBonus=0.05 },
     { id="dragao",   name="Dragão Épico",      icon="🐉", cost=300000,  auraBonus=0.20, rarityBonus=0.10 },
     { id="fantasma", name="Fantasma OG",       icon="👻", cost=2000000, auraBonus=0.50, rarityBonus=0.20 },
+    { id="fenix",    name="Fênix do Vazio",    icon="🦅", cost=5000000,   auraBonus=0.75, rarityBonus=0.25 },
+    { id="serpente", name="Serpente Neon",      icon="🐍", cost=800000,    auraBonus=0.15, rarityBonus=0.15 },
+    { id="robô",     name="Robô Brainrot",      icon="🤖", cost=150000,    auraBonus=0.12, rarityBonus=0.05 },
 }
 
 -- =====================================================
 --  PRESTÍGIO
 -- =====================================================
-GameConfig.MAX_REBIRTHS_FOR_PRESTIGE = 8
+GameConfig.MAX_REBIRTHS_FOR_PRESTIGE = 12  -- era 8
 GameConfig.MAX_PRESTIGE              = 5
 GameConfig.PRESTIGE_MULTIPLIER       = 1.5   -- por nível (multiplicativo)
 
@@ -280,7 +289,7 @@ GameConfig.TITLES = {
 -- =====================================================
 --  VIP / ADMIN
 -- =====================================================
-GameConfig.VIP_GAMEPASS_ID = 987654321   -- substitua pelo ID real
+GameConfig.VIP_GAMEPASS_ID = 0           -- 0 = VIP desativado até configurar o ID real
 GameConfig.VIP_AURA_BONUS  = 2.0         -- 2× aura para VIP
 GameConfig.VIP_CAP_BONUS   = 2           -- +2 no rebirthsCap base
 GameConfig.ADMIN_IDS       = {}          -- ex: { 123456789, 987654321 }
@@ -297,6 +306,17 @@ GameConfig.CURRENT_EVENT = nil
 --     rarBonus  = 1.5,    -- peso extra para raros
 --     color     = Color3.fromRGB(255, 215, 0),
 -- }
+
+-- =====================================================
+--  EVENTO DE FIM DE SEMANA
+-- =====================================================
+GameConfig.WEEKEND_EVENT = {
+    name      = "Fim de Semana Dourado",
+    icon      = "⭐",
+    auraBonus = 2.0,
+    rarBonus  = 1.5,
+    color     = Color3.fromRGB(255, 215, 0),
+}
 
 -- =====================================================
 --  BATTLEPASS
@@ -345,7 +365,7 @@ GameConfig.BIOME_ROTATION_INTERVAL = 300   -- segundos (5 min)
 -- =====================================================
 --  LUCKY SPIN (roleta a cada N roubos)
 -- =====================================================
-GameConfig.LUCKY_SPIN_INTERVAL = 20   -- a cada 20 roubos
+GameConfig.LUCKY_SPIN_INTERVAL = 35   -- era 20
 GameConfig.LUCKY_SPIN_REWARDS = {
     { type="aura",  amount=5000,    name="5.000 Aura",       weight=40, color=Color3.fromRGB(200,200,200) },
     { type="aura",  amount=25000,   name="25.000 Aura",      weight=25, color=Color3.fromRGB(255,200,0)   },
@@ -481,5 +501,17 @@ GameConfig.CONVEYOR_WAYPOINTS = {
     Vector3.new(-40, 4.5,  22),   -- WP4 (canto NW) → despawn ao chegar WP1
 }
 GameConfig.CONVEYOR_SPEED = 9   -- studs por segundo
+
+-- =====================================================
+--  SKINS DE TRILHA
+-- =====================================================
+GameConfig.TRAIL_SKINS = {
+    { id="default",  name="Padrão",        prestigeReq=0, colors={Color3.fromRGB(80,200,255), Color3.fromRGB(160,80,255), Color3.fromRGB(255,80,160)} },
+    { id="fire",     name="Chama",         prestigeReq=1, colors={Color3.fromRGB(255,80,0),   Color3.fromRGB(255,180,0),  Color3.fromRGB(255,255,100)} },
+    { id="ice",      name="Gelo",          prestigeReq=2, colors={Color3.fromRGB(100,220,255), Color3.fromRGB(180,240,255), Color3.fromRGB(220,255,255)} },
+    { id="void",     name="Vazio",         prestigeReq=3, colors={Color3.fromRGB(40,0,80),    Color3.fromRGB(100,0,180),  Color3.fromRGB(200,0,255)} },
+    { id="gold",     name="Ouro Divino",   prestigeReq=4, colors={Color3.fromRGB(255,200,0),  Color3.fromRGB(255,255,0),  Color3.fromRGB(255,165,0)}  },
+    { id="rainbow",  name="Arco-Íris",     prestigeReq=5, colors={Color3.fromRGB(255,0,0),    Color3.fromRGB(0,255,0),    Color3.fromRGB(0,0,255)}    },
+}
 
 return GameConfig
