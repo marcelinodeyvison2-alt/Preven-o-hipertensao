@@ -258,13 +258,13 @@ for areaKey, areaData in pairs(BrainrotConfig.Areas) do
     makeSurfaceLabel(arch, Enum.NormalId.Back, areaData.DisplayName..lockText, Color3.new(1,1,1), 0.35)
 
     local spawnFolder = Instance.new("Folder"); spawnFolder.Name="SpawnPoints"; spawnFolder.Parent=areaModel
-    local halfX = areaData.Size.X/2 - 8
-    local halfZ = areaData.Size.Z/2 - 8
+    local halfX = math.floor(areaData.Size.X/2) - 8
+    local halfZ = math.floor(areaData.Size.Z/2) - 8
     math.randomseed(areaKey:len() * 7)
     for i = 1, areaData.MaxSpawns do
         makePart({ Name="SP_"..i,
             Size=Vector3.new(1,1,1),
-            Position=areaData.Position+Vector3.new(math.random(-halfX,halfX),areaData.SpawnHeightOffset,math.random(-halfZ,halfZ)),
+            Position=areaData.Position+Vector3.new(math.random(-halfX,halfX), 0, math.random(-halfZ,halfZ)),
             Anchored=true, Transparency=1, CanCollide=false, Parent=spawnFolder })
     end
 end
